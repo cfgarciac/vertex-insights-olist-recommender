@@ -1,0 +1,13 @@
+# Dependencias de producción del Proyecto Final
+# Se agregan dependencias por etapa conforme se necesiten.
+
+# === Análisis y manipulación de datos ===
+pandas>=2.0
+numpy>=1.24
+
+# === Modelado ===
+scikit-learn>=1.3
+scipy>=1.10
+
+# === Serialización ===
+joblib>=1.3

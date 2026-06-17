@@ -1,0 +1,19 @@
+# Dependencias adicionales de desarrollo
+# Hereda todo de requirements.txt y agrega herramientas locales.
+
+-r requirements.txt
+
+# === Notebooks ===
+jupyter>=1.0
+ipykernel>=6.25
+
+# === Visualización exploratoria ===
+matplotlib>=3.7
+seaborn>=0.12
+
+# === Testing ===
+pytest>=7.4
+
+# === Calidad de código (opcional pero recomendado) ===
+black>=23.7
+flake8>=6.1

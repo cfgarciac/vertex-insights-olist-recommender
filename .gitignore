@@ -1,0 +1,63 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.installed.cfg
+
+# === Entornos virtuales ===
+venv/
+env/
+ENV/
+.venv/
+
+# === IDEs y editores ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === Jupyter Notebooks ===
+.ipynb_checkpoints/
+
+# === Datos (no versionar el dataset) ===
+data/raw/
+data/processed/
+*.csv
+*.parquet
+*.xlsx
+!data/.gitkeep
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# === Modelos serializados pesados ===
+artifacts/*.pkl
+artifacts/*.joblib
+artifacts/*.h5
+!artifacts/.gitkeep
+
+# === Variables de entorno y secretos (crítico en repo público) ===
+.env
+.env.*
+*.pem
+*.key
+secrets/
+
+# === Testing y coverage ===
+.coverage
+.pytest_cache/
+htmlcov/
+
+# === Sistema operativo ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Logs ===
+*.log
+logs/
