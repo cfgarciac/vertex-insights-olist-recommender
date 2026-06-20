@@ -1,0 +1,105 @@
+name: Historia de Usuario
+description: Plantilla para registrar una nueva historia de usuario del backlog del proyecto.
+title: "[HU-XX] "
+labels: ["story"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Plantilla de historia de usuario
+
+        Por favor diligencie todos los campos. Reemplace `HU-XX` en el título por el
+        identificador correlativo asignado por el Product Owner.
+
+  - type: input
+    id: rol
+    attributes:
+      label: Rol (Como...)
+      description: Actor o rol que tiene la necesidad.
+      placeholder: "ejemplo: Data Scientist"
+    validations:
+      required: true
+
+  - type: input
+    id: necesidad
+    attributes:
+      label: Necesidad (Quiero...)
+      description: Qué necesita o quiere el actor.
+      placeholder: "ejemplo: implementar el baseline de popularidad"
+    validations:
+      required: true
+
+  - type: input
+    id: motivacion
+    attributes:
+      label: Motivación (Para...)
+      description: Para qué lo necesita; el valor de negocio o técnico.
+      placeholder: "ejemplo: disponer de un punto de comparación sólido"
+    validations:
+      required: true
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      description: Lista verificable de condiciones que definen "terminado".
+      placeholder: |
+        - Criterio 1
+        - Criterio 2
+        - Criterio 3
+      value: |
+        - 
+        - 
+        - 
+    validations:
+      required: true
+
+  - type: dropdown
+    id: estimacion
+    attributes:
+      label: Estimación
+      description: Talla T-shirt sizing.
+      options:
+        - S (hasta 1 día-persona)
+        - M (1-2 días-persona)
+        - L (2-3 días-persona)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: prioridad
+    attributes:
+      label: Prioridad
+      description: Prioridad relativa al sprint en el que se planifica entregar.
+      options:
+        - Alta
+        - Media
+        - Baja
+    validations:
+      required: true
+
+  - type: dropdown
+    id: etapa
+    attributes:
+      label: Etapa asociada
+      description: Etapa del proyecto a la que pertenece la historia.
+      options:
+        - "1 - Setup del repositorio"
+        - "2 - Entendimiento del negocio y EDA"
+        - "3 - Feature engineering"
+        - "4 - Modelado"
+        - "5 - Evaluación"
+        - "6 - Dashboard"
+        - "7 - Despliegue"
+        - "8 - Documentación técnica"
+        - "9 - Entrega final"
+    validations:
+      required: true
+
+  - type: textarea
+    id: notas
+    attributes:
+      label: Notas adicionales
+      description: Información de contexto, dependencias, riesgos (opcional).
+    validations:
+      required: false
