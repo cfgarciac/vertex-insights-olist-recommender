@@ -104,8 +104,10 @@ como dataset principal del proyecto.
 ### D-02 — Tipo de sistema de recomendación
 
 **Fecha:** Pre-PF
-**Estado:** Aceptada
+**Estado:** Reemplazada por D-16 (pivote del objetivo a P1)
 **Responsable:** Data Scientist + Product Owner
+
+> **Nota (2026-06-18):** Reemplazada por el pivote a P1 (D-16). El recomendador item-to-item deja de ser la solución del proyecto y queda como la hipótesis del cliente investigada (viable pero limitada).
 
 **Contexto:**
 Definida la elección de Olist, se hace evidente que la alta sparsity
@@ -145,8 +147,10 @@ productos comprados juntos (item-based collaborative filtering).
 ### D-03 — Indicadores clave de desempeño del proyecto
 
 **Fecha:** Pre-PF
-**Estado:** Aceptada
+**Estado:** Reemplazada por D-19 (redefinición de KPIs por el pivote a P1)
 **Responsable:** Product Owner
+
+> **Nota (2026-06-20):** CTR no es medible en Olist (sin datos de navegación) y AOV pierde sentido como KPI del nuevo objetivo. Reemplazada por D-19.
 
 **Contexto:**
 La consigna del PF requiere definir KPIs de negocio asociados al
@@ -743,7 +747,168 @@ estructurados.
 
 ---
 
-*Bitácora de decisiones del Proyecto Final. Las decisiones registradas
-hasta D-12 corresponden a la fase de planificación y al cierre de la
-Etapa 0. Las decisiones D-13 a D-15 corresponden al cierre de la Etapa 1.
-Nuevas decisiones se agregarán durante la ejecución del proyecto.*
+### D-16 — Pivote del objetivo: de recomendador item-to-item a predicción de entrega tardía (P1)
+
+**Fecha:** 2026-06-18
+**Estado:** Aceptada
+**Responsable:** Data Analyst (lidera el descubrimiento) + Data Scientist, validado por el Product Owner
+
+**Contexto:**
+La propuesta aprobada (D-02, D-12) comprometía un recomendador item-to-item. Al investigar a fondo esa hipótesis durante el EDA de la Etapa 2, se confirmó que el dataset es estructuralmente pobre para el mundo pre-compra: co-compra escasa (3.3% de órdenes con 2+ productos), ~97% de clientes con una sola compra, y cero columnas de navegación/clicks (CTR no medible). El recomendador resultó **viable pero limitado**. En paralelo, las tablas `reviews` y `geolocation` (ricas y sin explotar) apuntaban a un dolor post-compra mayor y mejor sostenido por los datos.
+
+**Decisión:**
+El equipo pivota. Actuando como consultora que primero probó la hipótesis del cliente, ejecuta un descubrimiento estructurado del problema (D-17) y reorienta el proyecto a **P1 — Desempeño de entrega**: predecir si una orden llegará tarde respecto a la fecha prometida. item-to-item NO se borra del relato: queda como la hipótesis del cliente investigada con rigor (gancho de la narrativa de consultora).
+
+**Alternativas consideradas:**
+- Mantener el recomendador como solución final — descartado por su techo (escasez de co-compra y ausencia de señal pre-compra).
+- Construir ambos (recomendador + P1) — descartado: dos problemas son dos proyectos, inviable en el plazo.
+
+**Consecuencias:**
+- Positivas:
+  - Problema con *target* limpio y demostrable end-to-end; aprovecha `geolocation` y `reviews`.
+  - Fuerza lecciones de *data leakage* y geoespacial; dolor real, accionable y de valor (~R$1.1M de GMV expuesto).
+- Negativas o trade-offs:
+  - Divergencia respecto a la propuesta aprobada (riesgo R-13).
+  - Reemplaza D-02 y D-03 y obliga a redefinir el backlog del recomendador (HU-07 a HU-18).
+
+**Etapa asociada:** 2
+
+---
+
+### D-17 — Metodología de descubrimiento del problema (embudo Descubrimiento–DVA)
+
+**Fecha:** 2026-06-18
+**Estado:** Aceptada
+**Responsable:** Data Analyst + Data Scientist
+
+**Contexto:**
+Sin un *Subject-Matter Expert* (experto de dominio) de Olist, el equipo necesitaba un método riguroso para elegir el dolor de negocio de mayor valor que los datos sostuvieran, en lugar de asumir una solución.
+
+**Decisión:**
+Se adopta un **embudo de descubrimiento (Niveles 0–3)** que persigue en paralelo "¿qué dolor vale más?" y "¿los datos lo sostienen?". Sustituye al SME con tres fuentes: dominio público del e-commerce, lo que Olist midió (lectura del esquema como prioridades reveladas) y la voz del cliente (99k reseñas). De 12 dolores se consolidó a 5 candidatos (P1–P5) y se filtró por tres compuertas (¿duele? ¿accionable? ¿hay materia prima?). El razonamiento completo vive en el *Problem Discovery & Data Viability Report* (`docs/`).
+
+**Alternativas consideradas:**
+- Asumir el recomendador (D-02) — descartado por el pivote.
+- Elegir el problema por intuición — descartado por falta de rigor y trazabilidad.
+
+**Consecuencias:**
+- Positivas:
+  - Elección defendible y documentada; narrativa de consultora sólida.
+- Negativas o trade-offs:
+  - Trabajo de descubrimiento adicional dentro del plazo de la Etapa 2.
+
+**Etapa asociada:** 2
+
+---
+
+### D-18 — Selección de P1 (entrega) sobre P2 y P3; frontera P1↔P3
+
+**Fecha:** 2026-06-19
+**Estado:** Aceptada
+**Responsable:** Data Scientist + Data Analyst, validado por el Product Owner
+
+**Contexto:**
+El embudo dejó tres finalistas: P1 (entrega), P2 (satisfacción) y P3 (vendedores). P2 es el de mayor alcance (2/3 del dolor) pero su corazón es *driver analysis* (un estudio, no un modelo desplegable); P3 es accionable pero con *target* a construir y mayor riesgo; P1 es el único con *target* limpio y un artefacto que el cliente usaría.
+
+**Decisión:**
+Se elige **P1 — Desempeño de entrega**. **Frontera P1↔P3:** el vendedor NO es un problema aparte; su señal entra como *feature* de P1 (tasa histórica de despacho/entrega tardía). Un solo problema, un solo *target*.
+
+**Alternativas consideradas:**
+- P2 satisfacción — descartado como problema central por ser un estudio, no un modelo desplegable (se asume su mayor alcance como trade-off consciente).
+- P3 vendedores — descartado como problema independiente por riesgo de completitud; se reubica como *feature* de P1.
+
+**Consecuencias:**
+- Positivas:
+  - Completable end-to-end; valor real y regionalmente nítido (Norte/Nordeste); evita doble conteo P1/P3.
+- Negativas o trade-offs:
+  - Alcance acotado (~1/3 del dolor total) frente a P2.
+
+**Etapa asociada:** 2
+
+---
+
+### D-19 — Redefinición de KPIs y métricas de evaluación (reemplaza D-03)
+
+**Fecha:** 2026-06-20
+**Estado:** Aceptada
+**Responsable:** Product Owner + Data Scientist
+
+**Contexto:**
+Los KPIs CTR/AOV (D-03) eran del recomendador y dejan de aplicar: CTR no es medible en Olist y AOV no es el indicador del nuevo objetivo. P1 exige KPIs y métricas propias.
+
+**Decisión:**
+- **KPI de negocio principal:** tasa de entrega a tiempo (% de órdenes entregadas en o antes de la fecha prometida); su complemento es la tasa de entrega tardía (8.1% base).
+- **KPI secundario / valor en riesgo:** GMV expuesto a la tardanza (~R$1.1M) y GMV no realizado de las no entregadas.
+- **Métricas técnicas offline** (clasificación de `entrega_tarde`): ROC-AUC, PR-AUC, precision/recall/F1 a un umbral y calibración. Se mantiene la **partición temporal** de la evaluación (D-09).
+
+**Alternativas consideradas:**
+- Conservar CTR/AOV — descartado por inaplicables al nuevo objetivo.
+- Evaluar solo con *accuracy* — descartado por el desbalance (8.1%); PR-AUC y *recall* son más informativos.
+
+**Consecuencias:**
+- Positivas:
+  - KPIs medibles y alineados al dolor real; métricas adecuadas a un problema desbalanceado.
+- Negativas o trade-offs:
+  - Reemplaza D-03; obliga a redefinir la HU de evaluación (HU-12) y los endpoints (HU-13).
+
+**Etapa asociada:** 2
+
+---
+
+### D-20 — Definición del *target* y del universo de análisis de P1
+
+**Fecha:** 2026-06-20
+**Estado:** Aceptada
+**Responsable:** Data Analyst + Data Scientist
+
+**Contexto:**
+Para modelar P1 hay que fijar qué se predice y sobre qué órdenes.
+
+**Decisión:**
+- *Target* binario `entrega_tarde = (fecha de entrega real > fecha estimada)`, definido **contra la promesa** que percibe el cliente (no contra días absolutos).
+- **Universo predictivo:** órdenes `delivered` (las únicas etiquetables). Las no entregadas/canceladas (2.98%) se caracterizan **aparte** como ausencia informativa (dolor de P1 puro, sin etiqueta tarde/puntual).
+- Se deja como alternativa continua `dias_vs_promesa` para una posible regresión.
+
+**Alternativas consideradas:**
+- "Tarde" por días absolutos — descartado: el cliente reacciona a la promesa rota (la insatisfacción salta al cruzar el 0), no a un umbral fijo.
+- Incluir las no entregadas en el *target* binario — descartado: no tienen fecha real; se tratan aparte.
+
+**Consecuencias:**
+- Positivas:
+  - *Target* limpio con tasa base sana (8.1%, desbalance modelable).
+- Negativas o trade-offs:
+  - El universo `delivered` ciega a la insatisfacción por no-entrega (se documenta).
+
+**Etapa asociada:** 2
+
+---
+
+### D-21 — Disciplina anti-leakage y *shortlist* de features [t0]
+
+**Fecha:** 2026-06-20
+**Estado:** Aceptada
+**Responsable:** Data Scientist + Data Analyst
+
+**Contexto:**
+P1 se predeciría en el momento de la compra/aprobación (t0). Variables como la fecha de entrega real o la reseña solo existen después; usarlas como *feature* sería *data leakage* (fuga de datos).
+
+**Decisión:**
+Toda variable se clasifica **[t0]** (disponible al comprar → *feature* legítima) o **[POST]** (resultado → prohibida como *feature*; la fecha real solo *etiqueta*). La tasa histórica del vendedor se calcula con sus órdenes pasadas, **excluyendo la orden actual** (ventana a fijar en la Etapa 3). *Shortlist* [t0]: días prometidos, distancia *haversine*, `mismo_estado`, ratio flete/valor, peso/volumen/categoría del producto, mes/día de compra, tasa histórica de entrega tardía del vendedor. Se apoya en la partición temporal (D-09).
+
+**Alternativas consideradas:**
+- Usar todas las variables disponibles — descartado por *leakage* (infla métricas offline y no es desplegable).
+
+**Consecuencias:**
+- Positivas:
+  - Modelo honesto y desplegable; lección metodológica central; insumo directo de la Etapa 3.
+- Negativas o trade-offs:
+  - Descarta features potentes pero ilegítimas; exige cuidado en el *split* y en la construcción de features históricas.
+
+**Etapa asociada:** 2
+
+---
+
+*Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
+planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
+D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
+reemplazadas). Nuevas decisiones se agregarán durante la ejecución del proyecto.*

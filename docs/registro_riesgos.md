@@ -72,8 +72,14 @@
 **Probabilidad:** Alta
 **Impacto:** Medio
 **Nivel de riesgo:** Alto
-**Estado:** Mitigado (con decisión de arquitectura)
+**Estado:** Cerrado (resuelto por el pivote a P1)
+**Fecha de cambio de estado:** 2026-06-20
 **Responsable de seguimiento:** Data Scientist
+
+> **Cierre (2026-06-20):** La sparsity se confirmó en el EDA (co-compra 3.3%,
+> ~97% de clientes con una sola compra) y fue una de las razones del pivote del
+> recomendador a P1 (D-16). Como P1 no usa la matriz cliente-producto, este
+> riesgo deja de ser relevante para el proyecto.
 
 **Descripción:**
 La gran mayoría de los clientes en Olist realiza una sola compra en
@@ -305,6 +311,11 @@ funcionalidades, o reorientación de algunos entregables.
 **Estado:** Activo
 **Responsable de seguimiento:** Data Analyst
 
+> **Actualización (Etapa 2):** El EDA cuantificó los nulos (categoría de
+> producto, atributos físicos) y la cobertura geográfica; sigue activo de cara
+> al feature engineering de P1, con estrategia de imputación propuesta (D-21,
+> HU-07).
+
 **Descripción:**
 El dataset Olist tiene valores nulos conocidos en las categorías de
 producto y en algunos atributos físicos (peso, dimensiones, fotos).
@@ -341,10 +352,15 @@ fuertemente de los atributos del producto.
 **Probabilidad:** Baja
 **Impacto:** Medio
 **Nivel de riesgo:** Bajo
-**Estado:** Activo
+**Estado:** Cerrado (resuelto por el pivote a P1)
+**Fecha de cambio de estado:** 2026-06-20
 **Responsable de seguimiento:** Data Scientist
 
-**Descripción:**
+**Notas:** El pivote a P1 (D-16) elimina la dependencia de la matriz de
+co-ocurrencia producto-producto: la tarea de predicción de entrega tardía no la
+construye. El riesgo queda sin objeto y se cierra, por la misma lógica que R-01.
+
+**Descripción (histórica):**
 La matriz de co-ocurrencia producto-producto en Olist puede tener
 dimensiones del orden de 32,000 x 32,000 si se considera el catálogo
 completo. Esto puede generar problemas de memoria si no se usa una
@@ -498,29 +514,132 @@ mergeados por el mismo autor, violando temporalmente la convención.
 
 ---
 
+### R-12 — Data leakage en la predicción de entrega tardía
+
+**Categoría:** Técnica / Datos
+**Probabilidad:** Media
+**Impacto:** Alto
+**Nivel de riesgo:** Alto
+**Estado:** Activo
+**Responsable de seguimiento:** Data Scientist
+
+**Descripción:**
+El *target* `entrega_tarde` se construye con la fecha de entrega real. Si esa
+información, o derivados como los días reales de tránsito, la fecha de despacho
+real o la propia reseña, se usa como *feature*, el modelo "ve el futuro":
+métricas infladas offline y fracaso en producción.
+
+**Detonantes posibles:**
+- Construir features sin separar [t0] de [POST].
+- Calcular la tasa histórica del vendedor incluyendo la orden actual.
+- Usar un *split* aleatorio en vez de temporal.
+
+**Plan de mitigación:**
+- Mapa de leakage [t0]/[POST] aplicado (D-21).
+- Features históricas con ventana estrictamente pasada.
+- Partición temporal de la evaluación (D-09).
+- Revisión cruzada del conjunto de features antes de modelar.
+
+**Plan de contingencia:**
+- Si una métrica offline resulta "sospechosamente alta", auditar las features en
+  busca de fuga y reentrenar.
+
+**Etapas afectadas:** 3, 4, 6
+
+---
+
+### R-13 — Desalineación con la propuesta aprobada por el pivote de objetivo
+
+**Categoría:** Negocio / Proceso
+**Probabilidad:** Media
+**Impacto:** Alto
+**Nivel de riesgo:** Alto
+**Estado:** Activo
+**Responsable de seguimiento:** Product Owner
+
+**Descripción:**
+La propuesta aprobada en la Etapa 0 (D-12) comprometía un recomendador
+item-to-item. El pivote a P1 (D-16), aunque bien fundamentado, cambia el
+objetivo a mitad del Sprint 1; el comité podría esperar el entregable original.
+
+**Detonantes posibles:**
+- El mentor evalúa contra la propuesta literal.
+- El pivote no se comunica ni se justifica a tiempo.
+
+**Plan de mitigación:**
+- Documentar el pivote con rigor (Problem Discovery & DVA Report, D-16 a D-21).
+- Narrarlo como consultora que probó la hipótesis del cliente antes de proponer
+  un dolor mayor; el PO comunica el cambio al mentor de forma explícita y temprana.
+- Conservar item-to-item como hipótesis investigada (no es trabajo perdido).
+
+**Plan de contingencia:**
+- Si el mentor exige el recomendador, presentar el DVA de item-to-item (viable
+  pero limitado) como evidencia y negociar alcance; el recomendador investigado
+  puede reincorporarse como anexo.
+
+**Etapas afectadas:** 2, 5, 9
+
+---
+
+### R-14 — Cambio de régimen temporal y eventos puntuales que afectan la generalización
+
+**Categoría:** Datos
+**Probabilidad:** Media
+**Impacto:** Medio
+**Nivel de riesgo:** Medio
+**Estado:** Activo
+**Responsable de seguimiento:** Data Analyst
+
+**Descripción:**
+El EDA detectó variación temporal de la tasa de tardanza y un posible incidente
+logístico puntual en 2018 que infla algún mes. Un modelo entrenado sobre un
+periodo y validado en otro (partición temporal) puede degradarse si el régimen
+cambia; además, los meses de bajo volumen producen tasas inestables.
+
+**Detonantes posibles:**
+- *Split* temporal que deja el incidente solo en *train* o solo en validación.
+- Features estacionales sobreajustadas a un evento irrepetible.
+
+**Plan de mitigación:**
+- Elegir la fecha de corte del *split* a la luz de la distribución temporal.
+- Tratar con cuidado las features de estacionalidad; filtrar o ponderar meses de
+  bajo volumen; documentar el incidente.
+
+**Plan de contingencia:**
+- Si la validación temporal muestra degradación por régimen, reportarla
+  honestamente y discutir una ventana de entrenamiento más representativa.
+
+**Etapas afectadas:** 3, 4, 6
+
+---
+
 ## Resumen ejecutivo del registro
 
 | Identificador | Categoría | Nivel | Estado |
 |---|---|---|---|
-| R-01 | Datos | Alto | Mitigado |
+| R-01 | Datos | Alto | Cerrado (pivote) |
 | R-02 | Tiempo | Alto | Activo |
 | R-03 | Equipo | Medio | Mitigado |
 | R-04 | Equipo | Medio | Activo |
 | R-05 | Equipo | Medio | Activo |
 | R-06 | Negocio | Medio | Activo |
 | R-07 | Datos | Medio | Activo |
-| R-08 | Técnico | Bajo | Activo |
+| R-08 | Técnico | Bajo | Cerrado (pivote) |
 | R-09 | Equipo / Técnica | Medio | Activo |
 | R-10 | Técnica / Seguridad | Alto | Mitigado |
 | R-11 | Equipo / Proceso | Medio | Materializado (Etapa 1) |
+| R-12 | Técnica / Datos | Alto | Activo |
+| R-13 | Negocio / Proceso | Alto | Activo |
+| R-14 | Datos | Medio | Activo |
 
-**Riesgos críticos:** ninguno al cierre de la Etapa 1.
+**Riesgos críticos:** ninguno al cierre de la Etapa 2.
 
-**Riesgos altos no mitigados:** R-02 (duración corta vs alcance).
+**Riesgos altos no mitigados:** R-02 (duración corta vs alcance), R-12 (data
+leakage en P1) y R-13 (alineación del pivote con la propuesta aprobada).
 
-**Foco de seguimiento prioritario:** R-02 (escalable, requiere
-disciplina de equipo durante todo el proyecto) y R-10 (transversal,
-requiere disciplina técnica en cada commit).
+**Foco de seguimiento prioritario:** R-13 (comunicar y justificar el pivote al
+mentor), R-12 (disciplina anti-leakage en feature engineering y *split*) y R-02
+(tiempo).
 
 ---
 
