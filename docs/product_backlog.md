@@ -12,15 +12,24 @@
 
 ## Información general
 
-**Producto:** Sistema de recomendación item-to-item para marketplace
-e-commerce, sobre el dataset Brazilian E-commerce Public Dataset by
-Olist.
+**Producto:** Sistema predictivo de **desempeño de entrega** (predicción de
+entrega tardía, problema P1) para el marketplace Olist, sobre el dataset
+Brazilian E-commerce Public Dataset by Olist.
+
+> **Nota de pivote (Etapa 2 · D-16):** El producto se reorientó durante el EDA,
+> de un recomendador item-to-item a la **predicción de entrega tardía (P1)**.
+> item-to-item queda como la hipótesis del cliente investigada (viable pero
+> limitada). Las historias **HU-07 a HU-18**, escritas para el recomendador,
+> se realinean a P1: HU-07 ya está reescrita; HU-08 a HU-18 quedan EN REVISIÓN
+> por el Product Owner (ver la "Nota de impacto del pivote" tras HU-07 y las
+> decisiones D-16 a D-21 en la bitácora).
 
 **Sprint Goals:**
 
-- Sprint 1: Entregar un MVP funcional del sistema de recomendación,
-  con EDA completo, feature engineering reproducible y al menos dos
-  modelos comparados contra un baseline.
+- Sprint 1: Entregar un MVP funcional del **sistema predictivo de entrega
+  tardía (P1)**, con EDA/descubrimiento del problema completo, feature
+  engineering reproducible y al menos dos modelos de clasificación comparados
+  contra un baseline.
 - Sprint 2: Llevar el sistema a un estado productivo consumible, con
   API, dashboard, monitoreo, documentación final y presentación
   aprobada por el comité evaluador.
@@ -153,6 +162,16 @@ Olist,
 **Estimación:** S
 **Prioridad:** Alta
 **Etapa asociada:** 2
+**Estado:** Completada (Etapa 2)
+
+**Notas de cierre:**
+
+- El entendimiento del problema derivó en un **descubrimiento estructurado**
+  (embudo, D-17) que pivotó el objetivo a P1 (D-16, D-18).
+- El mapeo original de KPIs (CTR/AOV → Precision@K/Recall@K) quedó inaplicable
+  (CTR no medible en Olist; cambio de objetivo) y se **reemplazó por D-19**.
+- Variables clave identificadas y volcadas al *shortlist* de features [t0] (D-21).
+- Hipótesis inicial de modelado: **clasificación binaria de `entrega_tarde`** (D-20).
 
 ---
 
@@ -176,6 +195,21 @@ oportunidades de feature engineering.
 **Estimación:** L
 **Prioridad:** Alta
 **Etapa asociada:** 2
+**Estado:** Completada (Etapa 2)
+
+**Notas de cierre:**
+
+- EDA ejecutado sobre las 9 tablas (`notebooks/dva.ipynb`,
+  `discovery_nivel2.ipynb`, `nivel_2_dva.ipynb`) y consolidado en el EDA
+  enfocado de P1 `notebooks/02_EDA_VERTEX.ipynb` (con magnitud económica,
+  geoespacial, correlaciones y mapa de leakage).
+- La **sparsity se cuantificó** (co-compra 3.3%, ~97% de clientes con una sola
+  compra), confirmando el techo del recomendador y motivando el pivote
+  (riesgo R-01 cerrado).
+- Hallazgos consolidados en el **Problem Discovery & Data Viability Report**
+  (`docs/`), que cumple el rol del `eda_hallazgos.md` planeado, reorientado a P1.
+- Problemas de calidad documentados (nulos en categoría y atributos físicos,
+  cobertura geo); ver R-07.
 
 ---
 
@@ -197,32 +231,78 @@ stakeholders.
 **Estimación:** M
 **Prioridad:** Media
 **Etapa asociada:** 2
+**Estado:** Completada (Etapa 2) — reorientada a P1
+
+**Notas de cierre:**
+
+- El informe de narrativa de negocio se **reorienta a P1**. Vistas propuestas:
+  (1) tardanza por región (Norte/Nordeste vs São Paulo), (2) distancia vs
+  tardanza, (3) curva en "J" de satisfacción vs cumplimiento de la promesa,
+  (4) colchón de la estimación (prometido − real).
+- **[POR CONFIRMAR — Juan/DA + PO]** estado y ubicación del archivo `.pbix` y la
+  validación formal del PO. Ajustar este bloque antes de publicar el cierre.
 
 ---
 
-### HU-07 — Preparar los datos y construir los pipelines de feature engineering
+### HU-07 — Preparar los datos y construir el pipeline de features de P1 (entrega tardía)
 
 **Como** Data Scientist,
-**quiero** construir los pipelines reproducibles de limpieza,
-integración y feature engineering,
-**para** garantizar que las mismas transformaciones se apliquen
-consistentemente en entrenamiento e inferencia.
+**quiero** construir el pipeline reproducible de limpieza, integración y
+feature engineering para la predicción de entrega tardía,
+**para** garantizar que las mismas transformaciones se apliquen en
+entrenamiento e inferencia, sin fuga de datos.
 
 **Criterios de aceptación:**
 
-- Integración de las nueve tablas en el dataset analítico.
-- Tratamiento de nulos, outliers y categorías ausentes según
-  estrategia documentada.
-- Pipelines encapsulados con `Pipeline` y `ColumnTransformer` de
-  scikit-learn.
-- Matriz de co-ocurrencia producto-producto construida.
-- Vectores de características de producto construidos.
-- Split temporal del dataset realizado sin leakage.
+- Tabla analítica a nivel **orden** construida desde las nueve tablas
+  (universo `delivered`).
+- *Target* `entrega_tarde` construido contra la fecha prometida (D-20).
+- Features **[t0]** del *shortlist* (D-21): días prometidos, distancia
+  *haversine*, `mismo_estado`, ratio flete/valor, peso/volumen/categoría,
+  mes/día de compra.
+- **Tasa histórica de entrega tardía del vendedor** construida **sin fuga**
+  (ventana definida; solo órdenes pasadas, excluyendo la actual).
+- Tratamiento de nulos documentado (geo → centroide del estado; categoría →
+  "DESCONOCIDO" + indicador de *missingness*; dimensiones → mediana de categoría).
+- Encodings de categóricas (estado, categoría) y transformaciones numéricas.
+- Pipeline encapsulado con `Pipeline` y `ColumnTransformer` de scikit-learn.
+- **Split temporal** del dataset realizado sin *leakage* (D-09).
 - Pipeline serializado en `artifacts/`.
 
 **Estimación:** L
 **Prioridad:** Alta
 **Etapa asociada:** 3
+
+> **Reorientada por el pivote (D-16).** Reemplaza la versión orientada al
+> recomendador (matriz de co-ocurrencia producto-producto y vectores de producto).
+
+---
+
+### Nota de impacto del pivote en el backlog (Etapa 2 · D-16)
+
+Las siguientes historias se escribieron para el recomendador y se realinean a P1.
+Quedan **pendientes de redefinición formal por el Product Owner**; el mapeo
+propuesto es:
+
+- **HU-08 (baseline):** de "ranking por popularidad de categoría" → **baseline de
+  clasificación** (regla simple, p. ej. "cruce de estado + larga distancia = tarde",
+  o clase mayoritaria) como piso de comparación.
+- **HU-09 y HU-10 (canales content-based / collaborative):** se sustituyen por
+  **entrenar ≥2 modelos de clasificación comparables** de `entrega_tarde`
+  (p. ej. Regresión Logística y *Gradient Boosting*).
+- **HU-12 (evaluación):** de Precision@K/Recall@K/MAP@K → **ROC-AUC, PR-AUC, F1,
+  calibración**, con análisis por región y por *cold-start* de vendedores nuevos.
+- **HU-13 (API):** de `/recommend/similar` y `/recommend/complementary` →
+  endpoint **`/predict`** de riesgo de entrega tardía (entrada: features de la
+  orden en t0; salida: probabilidad/clase).
+- **HU-15 (dashboard):** pestañas de **predicción de riesgo**, exploración
+  regional del dolor y métricas del sistema.
+- **HU-16 (monitoreo):** se mantiene (PSI), ahora sobre las features de P1.
+- **HU-11, HU-14, HU-17, HU-18:** agnósticas al objetivo (cierre de Sprint,
+  Docker, documentación, presentación); ajustes menores de redacción.
+
+---
+
 
 ---
 
