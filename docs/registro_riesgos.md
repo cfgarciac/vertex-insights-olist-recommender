@@ -315,6 +315,14 @@ funcionalidades, o reorientación de algunos entregables.
 > producto, atributos físicos) y la cobertura geográfica; sigue activo de cara
 > al feature engineering de P1, con estrategia de imputación propuesta (D-21,
 > HU-07).
+>
+> **Actualización (Etapa 3):** Estrategia de imputación implementada y
+> documentada (D-26, `docs/decisiones_fe.md`): dimensiones por mediana de
+> categoría, geo/distancia y categóricas dentro del pipeline (ajustado solo en
+> train). Hallazgo registrado: los nulos de `dist_haversine_km` (0.49%) son la
+> **unión** de los huecos de geo cliente (0.27%) y vendedor (0.22%), no un
+> deterioro; comparar a nivel orden evita el falso diagnóstico. Sigue activo
+> como vigilancia en el modelado.
 
 **Descripción:**
 El dataset Olist tiene valores nulos conocidos en las categorías de
@@ -520,8 +528,16 @@ mergeados por el mismo autor, violando temporalmente la convención.
 **Probabilidad:** Media
 **Impacto:** Alto
 **Nivel de riesgo:** Alto
-**Estado:** Activo
+**Estado:** Mitigado (vigilancia en Etapa 4)
+**Fecha de cambio de estado:** 2026-06-20
 **Responsable de seguimiento:** Data Scientist
+
+> **Mitigación (2026-06-20, Etapa 3):** se aplicó la separación [t0]/[POST] como
+> checklist (features [POST] —entrega real, reseñas— excluidas), la tasa del
+> vendedor se calculó point-in-time con una **prueba anti-fuga automática** (OK),
+> el *split* es temporal por fecha de compra y el preprocesador se ajusta **solo
+> en train**. El riesgo sigue vigente como vigilancia en el modelado (Etapa 4): si
+> una métrica resulta sospechosamente alta, auditar primero `tasa_vendedor`.
 
 **Descripción:**
 El *target* `entrega_tarde` se construye con la fecha de entrega real. Si esa

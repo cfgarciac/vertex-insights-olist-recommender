@@ -908,7 +908,139 @@ Toda variable se clasifica **[t0]** (disponible al comprar → *feature* legíti
 
 ---
 
+### D-22 — Fuente del feature engineering: CSV consolidado en vez de las 9 tablas crudas
+
+**Fecha:** 2026-06-20
+**Estado:** Aceptada
+**Responsable:** Data Scientist
+
+**Contexto:**
+La guía de la Etapa 3 sugería partir de las nueve tablas crudas. Para esta etapa se dispone de un CSV ya consolidado a nivel ítem (`orders_consolidated.csv`) que integra ítems, pagos, reseñas, producto y geolocalización.
+
+**Decisión:**
+Construir la tabla analítica de P1 partiendo del CSV consolidado `orders_consolidated.csv`, no de las nueve tablas crudas. El script `src/features/build_dataset.py` parte de ese archivo y produce `vertex_files/orders_p1_features.csv`.
+
+**Alternativas consideradas:**
+- Reconstruir desde las 9 tablas crudas — descartado por redundante: el consolidado ya integra las uniones validadas en el EDA y acelera la etapa (R-02).
+
+**Consecuencias:**
+- Positivas:
+  - Menos código de unión, menos riesgo de *fan-out*, etapa más rápida.
+- Negativas o trade-offs:
+  - Se depende de la trazabilidad del consolidado; se documenta su origen para reproducibilidad.
+
+**Etapa asociada:** 3
+
+---
+
+### D-23 — Granularidad a nivel orden con vendedor/producto principal = primer ítem
+
+**Fecha:** 2026-06-20
+**Estado:** Aceptada
+**Responsable:** Data Scientist
+
+**Contexto:**
+El CSV viene a nivel ítem (112,650 filas; 1,275 órdenes multi-vendedor). P1 predice a nivel orden, así que hay que colapsar sin duplicar.
+
+**Decisión:**
+Una fila por `order_id`. El **vendedor/producto principal** es el del primer ítem (`order_item_id == 1`): de él salen `seller_id`, `seller_state`, geo del vendedor y `categoria_principal`. Los importes, peso y volumen se **agregan sobre todos los ítems** (`precio_total`, `flete_total`, `peso_total_g`, `volumen_total_cm3`, `n_items`).
+
+**Alternativas consideradas:**
+- Modelar a nivel ítem — descartado: el target y el dolor son de la orden completa.
+- Promediar geo/categoría de todos los ítems — descartado por complejidad sin valor claro para P1 en este sprint.
+
+**Consecuencias:**
+- Positivas:
+  - Tabla limpia (96,470 órdenes) consistente con el EDA; sin *fan-out*.
+- Negativas o trade-offs:
+  - El "principal" es una aproximación para órdenes multi-ítem/multi-vendedor; anotado para revisión futura.
+
+**Etapa asociada:** 3
+
+---
+
+### D-24 — Ventana de la tasa histórica del vendedor: expanding point-in-time, mínimo 5
+
+**Fecha:** 2026-06-20
+**Estado:** Aceptada
+**Responsable:** Data Scientist
+
+**Contexto:**
+La tasa histórica de tardanza del vendedor es la feature más predictiva y la más peligrosa por fuga (R-12). El EDA dejó un análisis de sensibilidad de la ventana.
+
+**Decisión:**
+Ventana **expanding y point-in-time**: para cada orden, la tasa usa solo órdenes **anteriores** del vendedor (excluye la actual). Mínimo de **5 órdenes previas**; por debajo se respalda con la **tasa global del train** (9.03%) y se marca `sin_historial_vendedor` (afecta al 11.57% de las órdenes). Se incluye una **prueba anti-fuga** automática en el script.
+
+**Alternativas consideradas:**
+- Ventana de últimas N órdenes — descartado por menor cobertura sin ganancia clara de separación en el rango explorado.
+- Sin mínimo de historial — descartado: tasas inestables con 1–2 órdenes.
+
+**Consecuencias:**
+- Positivas:
+  - Feature potente y legítima; respaldo explícito para vendedores nuevos.
+- Negativas o trade-offs:
+  - El respaldo global atenúa la señal en el 11.57% de órdenes (aceptable).
+
+**Etapa asociada:** 3
+
+---
+
+### D-25 — Split temporal 70/15/15 por fecha de compra
+
+**Fecha:** 2026-06-20
+**Estado:** Aceptada
+**Responsable:** Data Scientist
+
+**Contexto:**
+Un split aleatorio filtraría el futuro al pasado y contaminaría tanto la evaluación como los agregados históricos (R-12, R-14).
+
+**Decisión:**
+Corte **por fecha de compra** (no aleatorio): train = pasado, val/test = futuro, en proporción **70/15/15** (train 67,529 · val 14,470 · test 14,471). La tasa global de respaldo del vendedor y el ajuste del preprocesador se calculan **solo sobre train**. Se apoya en D-09.
+
+**Alternativas consideradas:**
+- Split aleatorio estratificado — descartado por *leakage* temporal.
+- Recortar la cola de 2018 ya en esta etapa — diferido: se inspecciona (R-14) pero se conserva el periodo completo y se vigila en la Etapa 4.
+
+**Consecuencias:**
+- Positivas:
+  - Evaluación honesta y desplegable; coherente con la disciplina anti-leakage.
+- Negativas o trade-offs:
+  - El régimen 2018 cae en test; se documenta como punto de vigilancia.
+
+**Etapa asociada:** 3
+
+---
+
+### D-26 — Imputación de negocio + pipeline serializado (ColumnTransformer)
+
+**Fecha:** 2026-06-20
+**Estado:** Aceptada
+**Responsable:** Data Scientist + Machine Learning Engineer
+
+**Contexto:**
+Los huecos de P1 tienen causas distintas y las transformaciones que aprenden parámetros no deben ajustarse sobre validación/prueba (fuente de fuga).
+
+**Decisión:**
+- **Imputación con sentido de negocio:** geo faltante → imputación dentro del pipeline (mediana en train), tras transformarse en `dist_haversine_km`; dimensiones de producto → **mediana de la categoría**; vendedor sin historial → tasa global del train + flag.
+- **Nulos de la distancia (`dist_haversine_km`):** el `NaN` se **conserva en el CSV** (no se imputa en el ETL); lo rellena el `SimpleImputer(median)` del pipeline, ajustado solo en train. Su % de nulos (0.49%, 476 órdenes) es la **unión** de los huecos de geo cliente (0.27%) y geo vendedor (0.22%) —no un deterioro del vendedor—; la comparación antes/después a nivel orden confirma que no aumenta.
+- **Encodings/escala** encapsulados en un `ColumnTransformer` (numéricas: mediana + `StandardScaler`; categóricas: más frecuente + `OneHotEncoder(handle_unknown="ignore", min_frequency=0.01)`), dentro de un `Pipeline` **ajustado solo en train** y serializado en `artifacts/pipeline_p1.joblib`.
+
+**Alternativas consideradas:**
+- `fillna(0)` global — descartado: borra la causa del hueco e introduce sesgo.
+- Imputar antes del split — descartado por *leakage* estadístico.
+
+**Consecuencias:**
+- Positivas:
+  - Preprocesamiento determinista y reutilizable por la Etapa 4 y el despliegue.
+- Negativas o trade-offs:
+  - Una sola fuente de transformación a mantener; documentada en `docs/decisiones_fe.md`.
+
+**Etapa asociada:** 3
+
+---
+
 *Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
 planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
 D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
-reemplazadas). Nuevas decisiones se agregarán durante la ejecución del proyecto.*
+reemplazadas); D-22 a D-26 al feature engineering de la Etapa 3. Nuevas
+decisiones se agregarán durante la ejecución del proyecto.*
