@@ -272,9 +272,26 @@ entrenamiento e inferencia, sin fuga de datos.
 **Estimación:** L
 **Prioridad:** Alta
 **Etapa asociada:** 3
+**Estado:** Completada (Etapa 3)
 
 > **Reorientada por el pivote (D-16).** Reemplaza la versión orientada al
 > recomendador (matriz de co-ocurrencia producto-producto y vectores de producto).
+
+**Notas de cierre:**
+
+- Tabla analítica a nivel orden construida sobre `delivered` (96,470 órdenes) a
+  partir del CSV consolidado (D-22, D-23); *target* `entrega_tarde` con tasa base
+  **8.11%**.
+- Features [t0] del *shortlist* construidas; columnas [POST] (entrega real,
+  reseñas) excluidas como features.
+- **Tasa histórica del vendedor sin fuga** (expanding point-in-time, mínimo 5,
+  respaldo global + flag) con **prueba anti-fuga OK** (D-24).
+- Imputación documentada (geo, dimensiones, vendedor nuevo) y encodings en un
+  `ColumnTransformer` ajustado solo en train; **pipeline serializado** en
+  `artifacts/pipeline_p1.joblib` (D-26).
+- **Split temporal 70/15/15** por fecha de compra (D-25).
+- Entregables: `src/features/build_dataset.py`, `vertex_files/orders_p1_features.csv`,
+  `notebooks/03_EDA_VERTEX.ipynb`, `docs/decisiones_fe.md`.
 
 ---
 
