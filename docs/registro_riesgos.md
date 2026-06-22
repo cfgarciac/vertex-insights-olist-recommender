@@ -528,9 +528,9 @@ mergeados por el mismo autor, violando temporalmente la convención.
 **Probabilidad:** Media
 **Impacto:** Alto
 **Nivel de riesgo:** Alto
-**Estado:** Mitigado (vigilancia en Etapa 4)
-**Fecha de cambio de estado:** 2026-06-20
-**Responsable de seguimiento:** Data Scientist
+**Estado:** Mitigado (auditado en Etapa 4; vigilancia en Etapa 6)
+**Fecha de cambio de estado:** 2026-06-21
+**Responsable de seguimiento:** Data Scientist + Machine Learning Engineer
 
 > **Mitigación (2026-06-20, Etapa 3):** se aplicó la separación [t0]/[POST] como
 > checklist (features [POST] —entrega real, reseñas— excluidas), la tasa del
@@ -538,6 +538,13 @@ mergeados por el mismo autor, violando temporalmente la convención.
 > el *split* es temporal por fecha de compra y el preprocesador se ajusta **solo
 > en train**. El riesgo sigue vigente como vigilancia en el modelado (Etapa 4): si
 > una métrica resulta sospechosamente alta, auditar primero `tasa_vendedor`.
+>
+> **Auditoría (2026-06-21, Etapa 4):** ejecutada. Las métricas quedaron en rango
+> realista (ROC-AUC 0.70, PR-AUC 0.12 — lejos del 0.99 que delataría fuga),
+> `tasa_vendedor` pesa solo **6.0%** de la importancia del modelo y un candado de
+> código (`assert_sin_features_post`) verifica que ninguna columna [POST] entra como
+> feature. **Sin fuga detectada.** La vigilancia continúa en la evaluación final
+> (Etapa 6).
 
 **Descripción:**
 El *target* `entrega_tarde` se construye con la fecha de entrega real. Si esa
@@ -606,6 +613,13 @@ objetivo a mitad del Sprint 1; el comité podría esperar el entregable original
 **Estado:** Activo
 **Responsable de seguimiento:** Data Analyst
 
+> **Observación (2026-06-21, Etapa 4):** el split temporal lo confirma: la tasa de
+> `entrega_tarde` cae de 9.03% (train, periodo antiguo) a 5.34% (val) y 6.61%
+> (test). El modelo se evalúa en un régimen distinto al de entrenamiento; las
+> métricas de test son honestas pero más bajas y la calibración queda desplazada
+> (D-29). Se conserva el periodo completo y se difiere el re-ventaneo/segmentación a
+> la Etapa 6.
+
 **Descripción:**
 El EDA detectó variación temporal de la tasa de tardanza y un posible incidente
 logístico puntual en 2018 que infla algún mes. Un modelo entrenado sobre un
@@ -644,18 +658,20 @@ cambia; además, los meses de bajo volumen producen tasas inestables.
 | R-09 | Equipo / Técnica | Medio | Activo |
 | R-10 | Técnica / Seguridad | Alto | Mitigado |
 | R-11 | Equipo / Proceso | Medio | Materializado (Etapa 1) |
-| R-12 | Técnica / Datos | Alto | Activo |
+| R-12 | Técnica / Datos | Alto | Mitigado (auditado en Etapa 4) |
 | R-13 | Negocio / Proceso | Alto | Activo |
 | R-14 | Datos | Medio | Activo |
 
-**Riesgos críticos:** ninguno al cierre de la Etapa 2.
+**Riesgos críticos:** ninguno al cierre de la Etapa 4.
 
-**Riesgos altos no mitigados:** R-02 (duración corta vs alcance), R-12 (data
-leakage en P1) y R-13 (alineación del pivote con la propuesta aprobada).
+**Riesgos altos no mitigados:** R-02 (duración corta vs alcance) y R-13 (alineación
+del pivote con la propuesta aprobada). R-12 (data leakage en P1) quedó **mitigado y
+auditado** en la Etapa 4 (sin fuga: `tasa_vendedor` 6%, métricas realistas), con
+vigilancia en la evaluación final.
 
-**Foco de seguimiento prioritario:** R-13 (comunicar y justificar el pivote al
-mentor), R-12 (disciplina anti-leakage en feature engineering y *split*) y R-02
-(tiempo).
+**Foco de seguimiento prioritario:** R-02 (tiempo, cierre del Sprint 1), R-13
+(comunicar y justificar el pivote al mentor) y R-14 (régimen temporal, a resolver en
+la Etapa 6).
 
 ---
 

@@ -171,7 +171,7 @@ Donde:
 | V1.0.0 | Etapa 1 | Estructura inicial del repositorio |
 | V1.1.0 | Etapa 2 | EDA completa |
 | V1.2.0 | Etapa 3 | Feature engineering reproducible |
-| V1.3.0 | Etapa 4 | Modelos baseline + content-based + collaborative implementados |
+| V1.3.0 | Etapa 4 | Modelado P1: baseline + ≥2 clasificadores de entrega tardía |
 | V1.4.0 | Etapa 5 | Cierre Sprint 1, Sprint Review |
 | V1.5.0 | Etapa 6 | Evaluación y selección de modelo |
 | V1.6.0 | Etapa 7 | API + Docker + Dashboard |

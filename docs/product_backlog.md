@@ -20,9 +20,10 @@ Brazilian E-commerce Public Dataset by Olist.
 > de un recomendador item-to-item a la **predicción de entrega tardía (P1)**.
 > item-to-item queda como la hipótesis del cliente investigada (viable pero
 > limitada). Las historias **HU-07 a HU-18**, escritas para el recomendador,
-> se realinean a P1: HU-07 ya está reescrita; HU-08 a HU-18 quedan EN REVISIÓN
-> por el Product Owner (ver la "Nota de impacto del pivote" tras HU-07 y las
-> decisiones D-16 a D-21 en la bitácora).
+> se realinean a P1: **HU-07 a HU-10 ya están reescritas y cerradas en su versión
+> P1** (Etapas 3-4); HU-11 (cierre del Sprint 1) y HU-12 a HU-18 (Sprint 2) se
+> ajustan al avanzar (ver la "Nota de impacto del pivote" tras HU-07 y las
+> decisiones D-16 a D-29 en la bitácora).
 
 **Sprint Goals:**
 
@@ -298,8 +299,9 @@ entrenamiento e inferencia, sin fuga de datos.
 ### Nota de impacto del pivote en el backlog (Etapa 2 · D-16)
 
 Las siguientes historias se escribieron para el recomendador y se realinean a P1.
-Quedan **pendientes de redefinición formal por el Product Owner**; el mapeo
-propuesto es:
+**HU-08, HU-09 y HU-10 ya fueron formalizadas y cerradas** en su versión P1 durante
+la Etapa 4 (ver sus notas de cierre); **HU-12 a HU-18 quedan pendientes de
+redefinición formal por el Product Owner**. El mapeo aplicado/propuesto es:
 
 - **HU-08 (baseline):** de "ranking por popularidad de categoría" → **baseline de
   clasificación** (regla simple, p. ej. "cruce de estado + larga distancia = tarde",
@@ -333,15 +335,29 @@ posteriores.
 
 **Criterios de aceptación:**
 
-- Función baseline implementada en `src/train.py`.
-- Métricas preliminares (Precision@K, Recall@K) calculadas sobre el
-  split de validación.
-- Documentación del baseline en el documento de decisiones de
-  modelado.
+- Baseline de clasificación implementado en `src/models/baseline.py`
+  (clase mayoritaria + regla simple distancia/estado).
+- Métricas de piso (PR-AUC, ROC-AUC) calculadas sobre el split temporal.
+- Documentado como piso de comparación en
+  `reports/etapa4_modelado_resultados.md`.
 
 **Estimación:** S
 **Prioridad:** Alta
 **Etapa asociada:** 4
+**Estado:** Completada (Etapa 4)
+
+> **Reorientada por el pivote (D-16).** De "ranking por popularidad de categoría"
+> a **baseline de clasificación** de `entrega_tarde` (clase mayoritaria + regla de
+> negocio distancia/estado) como piso de comparación.
+
+**Notas de cierre:**
+
+- Baselines implementados en `src/models/baseline.py`: clase mayoritaria (PR-AUC
+  test = tasa base 0.066, ROC-AUC 0.5) y regla distancia+estado.
+- Fijan el piso: ambos modelos (Logística y XGBoost) los superan con holgura en
+  PR-AUC/ROC-AUC (D-27); detalle en `reports/etapa4_modelado_resultados.md`.
+- Las métricas de ranking (Precision@K/Recall@K) se sustituyen por
+  PR-AUC/ROC-AUC/recall (D-19), coherente con el pivote.
 
 ---
 
@@ -355,16 +371,29 @@ cliente está visualizando.
 
 **Criterios de aceptación:**
 
-- Modelo content-based implementado y serializado.
-- Capaz de devolver los K productos más similares a un `product_id`
-  dado.
-- Métricas preliminares calculadas y comparadas con el baseline.
-- Sanity check manual con al menos diez productos de muestra
-  validados por el Product Owner.
+- Primer clasificador de `entrega_tarde` implementado (Regresión Logística,
+  `class_weight="balanced"`), encadenado al preprocesador de la Etapa 3 en un
+  `Pipeline` y ajustado solo en train.
+- Métricas (PR-AUC, ROC-AUC, F1) calculadas sobre el split temporal y comparadas
+  con el baseline.
+- Coeficientes revisados como lectura interpretable, validada por el Product Owner.
 
 **Estimación:** M
 **Prioridad:** Alta
 **Etapa asociada:** 4
+**Estado:** Completada (Etapa 4)
+
+> **Reorientada por el pivote (D-16).** De "canal content-based de productos
+> similares" a **primer clasificador de `entrega_tarde`** (Regresión Logística con
+> `class_weight="balanced"`).
+
+**Notas de cierre:**
+
+- Regresión Logística encadenada al preprocesador de la Etapa 3 en un `Pipeline`,
+  `fit` solo en train (`src/models/train.py`): PR-AUC(test) 0.111, ROC-AUC 0.665.
+- Supera al baseline; queda como modelo interpretable de referencia (coeficientes).
+- Los criterios de "productos similares / sanity check de catálogo" se sustituyen
+  por la evaluación de clasificación sobre el split temporal (D-19).
 
 ---
 
@@ -377,17 +406,29 @@ frecuentemente comprados juntos basado en co-ocurrencias,
 
 **Criterios de aceptación:**
 
-- Modelo item-based collaborative filtering implementado y
-  serializado.
-- Capaz de devolver los K productos más comprados junto a un
-  `product_id` dado.
-- Métricas preliminares calculadas y comparadas con el baseline.
-- Sanity check manual con al menos diez productos de muestra
-  validados por el Product Owner.
+- Segundo clasificador comparable de `entrega_tarde` implementado y serializado
+  (XGBoost) en un `Pipeline` con el preprocesador.
+- Métricas calculadas y comparadas con el baseline y el primer modelo; selección
+  del candidato por PR-AUC en validación.
+- Auditoría de fuga (R-12) revisada; sanity check de negocio validado por el
+  Product Owner.
 
 **Estimación:** M
 **Prioridad:** Alta
 **Etapa asociada:** 4
+**Estado:** Completada (Etapa 4)
+
+> **Reorientada por el pivote (D-16).** De "canal collaborative item-based" a
+> **segundo clasificador comparable** de `entrega_tarde` (XGBoost), seleccionado
+> como modelo candidato del Sprint 1.
+
+**Notas de cierre:**
+
+- XGBoost (`xgb_d4_l2`) encadenado al preprocesador en un `Pipeline`; **modelo
+  elegido** (D-27): PR-AUC(test) 0.124 (≈1.9× el azar), ROC-AUC 0.703, recall 0.346.
+- Serializado en `artifacts/modelo_p1.joblib`; auditoría de fuga OK (`tasa_vendedor`
+  6%). Detalle en `reports/etapa4_modelado_resultados.md`.
+- La evaluación final formal y la selección definitiva quedan para HU-12 (Etapa 6).
 
 ---
 
