@@ -1037,10 +1037,90 @@ Los huecos de P1 tienen causas distintas y las transformaciones que aprenden par
 
 **Etapa asociada:** 3
 
+### D-27 — Selección de XGBoost como modelo candidato de P1 (clasificación de entrega tardía)
+
+**Fecha:** 2026-06-21
+**Estado:** Aceptada
+**Responsable:** Machine Learning Engineer
+
+**Contexto:**
+La Etapa 4 entrenó un baseline y dos familias de clasificadores sobre el split temporal de la Etapa 3. Había que elegir un candidato para el cierre del Sprint 1, sin tocar `test` y respetando la disciplina anti-fuga (R-12).
+
+**Decisión:**
+Se selecciona **XGBoost** (configuración `xgb_d4_l2`: profundidad 4, 300 árboles, `reg_lambda=2`, `min_child_weight=5`, `scale_pos_weight≈10`) como modelo candidato, por su mayor **PR-AUC en validación** (0.166 vs 0.150 de la Regresión Logística) y su mejor calibración (Brier en test 0.186 vs 0.296). La selección entre candidatos se hizo por PR-AUC sobre el split temporal `val`, sin validación cruzada aleatoria (evitar fuga temporal, D-25).
+
+**Alternativas consideradas:**
+- Regresión Logística (`class_weight="balanced"`) — se conserva como modelo interpretable de referencia; menor PR-AUC/ROC-AUC y peor calibración.
+- XGBoost más profundo (`xgb_d6_l5`) — descartado: sobreajusta y da menor PR-AUC en val (0.152).
+
+**Consecuencias:**
+- Positivas:
+  - Mejor discriminación (ROC-AUC test 0.703) y recall (0.346) que la Logística.
+  - Probabilidades más sensatas (Brier 0.186) para usarse como riesgo.
+- Negativas o trade-offs:
+  - Menor interpretabilidad directa que la Logística (se mitiga con importancias).
+
+**Etapa asociada:** 4
+
+---
+
+### D-28 — Política de umbral operativo y manejo del desbalance en P1
+
+**Fecha:** 2026-06-21
+**Estado:** Aceptada
+**Responsable:** Machine Learning Engineer (validación de negocio pendiente del PO)
+
+**Contexto:**
+Con tasa base 6.6% (test), la probabilidad de riesgo debe traducirse en una decisión operativa (¿alertar o no?). El umbral define el balance precision/recall y cuántas órdenes se alertan.
+
+**Decisión:**
+- Manejo del desbalance dentro del entrenamiento: `scale_pos_weight` (XGBoost) y `class_weight="balanced"` (Logística); sin re-muestreo previo al split (evita fuga).
+- Se documentan **dos puntos de operación** sobre `test`: (a) **F1-óptimo** (umbral 0.574: recall 0.35, precision 0.13) como balance y (b) **alta cobertura** (umbral 0.468, recall objetivo ≈0.5 en val: recall 0.63, precision 0.12) para alertar órdenes en riesgo.
+- La **calibración formal** y la **elección definitiva del umbral** con el PO se difieren a la Etapa 6 (HU-12).
+
+**Alternativas consideradas:**
+- Umbral fijo 0.5 — descartado: ignora el desbalance y el costo de negocio.
+- Re-muestreo (SMOTE) — innecesario en esta etapa; los pesos de clase bastaron.
+
+**Consecuencias:**
+- Positivas:
+  - El negocio elige el punto de operación según cuántas alertas tolera.
+- Negativas o trade-offs:
+  - Las probabilidades aún no están calibradas (régimen temporal, D-29); se aborda en la Etapa 6.
+
+**Etapa asociada:** 4
+
+---
+
+### D-29 — Tratamiento del cambio de régimen temporal (R-14) en el modelado
+
+**Fecha:** 2026-06-21
+**Estado:** Aceptada
+**Responsable:** Machine Learning Engineer + Data Analyst
+
+**Contexto:**
+El split temporal expone que la tasa de `entrega_tarde` cae de 9.03% (train, periodo antiguo) a 5.34% (val) y 6.61% (test, periodo reciente): el modelo se entrena y evalúa en regímenes distintos (R-14). Esto deprime las métricas de val/test frente a train y desplaza la calibración.
+
+**Decisión:**
+Conservar el **periodo completo** en esta etapa (sin recortar la cola), **reportar honestamente** la caída de tasa base y su efecto en métricas/calibración, y **diferir** a la Etapa 6 la decisión de re-ventaneo (entrenar en una ventana más representativa) o segmentación temporal. No se reescribe el split a escondidas.
+
+**Alternativas consideradas:**
+- Recortar el periodo antiguo de train — descartado en esta etapa: requiere análisis dedicado y reduce datos; se evalúa en Etapa 6.
+- Re-split aleatorio para "subir" métricas — descartado: introduce fuga temporal (viola D-25).
+
+**Consecuencias:**
+- Positivas:
+  - Métricas honestas y un punto de vigilancia explícito para la evaluación final.
+- Negativas o trade-offs:
+  - Las métricas de Sprint 1 lucen modestas por construir sobre un régimen más difícil.
+
+**Etapa asociada:** 4
+
 ---
 
 *Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
 planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
 D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
-reemplazadas); D-22 a D-26 al feature engineering de la Etapa 3. Nuevas
-decisiones se agregarán durante la ejecución del proyecto.*
+reemplazadas); D-22 a D-26 al feature engineering de la Etapa 3; D-27 a D-29 al
+modelado de la Etapa 4. Nuevas decisiones se agregarán durante la ejecución del
+proyecto.*
