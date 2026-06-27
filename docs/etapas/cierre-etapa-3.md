@@ -10,6 +10,22 @@
 
 ---
 
+> ## Nota de re-ejecución (2026-06-27) — alcance multi-modelo (D-30)
+>
+> La Etapa 3 se **re-ejecutó** para no acotar el modelado a un único clasificador.
+> Se mantienen sin cambios el universo, la granularidad, la tasa del vendedor
+> point-in-time, el split temporal y toda la disciplina anti-leakage; **solo se
+> ampliaron los targets** sobre el **mismo** conjunto de features [t0]:
+> - `entrega_tarde` (clasificación binaria) · `clase_entrega` (multiclase) ·
+>   `dias_vs_promesa` (regresión) · `dias_entrega_real` (regresión).
+>
+> El CSV de salida se renombró a **`orders_features.csv`** (antes
+> `orders_p1_features.csv`) y pasó de 21 a **23 columnas**. Detalle técnico en
+> `docs/decisiones_fe.md` y decisión **D-30** en `bitacora_decisiones.md`.
+> Las **instrucciones para rehacer la Etapa 4** están en la sección 11 (handoff).
+
+---
+
 ## 1. Contexto y objetivos de la etapa
 
 La Etapa 3 es el corazón de la fase **Data Preparation** de CRISP-DM. Su objetivo
@@ -53,8 +69,10 @@ Las notas de cierre de la historia están en `product_backlog.md`.
   parte del CSV consolidado, colapsa a nivel orden sobre `delivered`, construye el
   target y las features [t0], calcula la tasa del vendedor sin fuga, ajusta el
   preprocesador solo en train y serializa el pipeline.
-- **Tabla analítica de P1** (`vertex_files/orders_p1_features.csv`): 96,470
-  órdenes × 21 columnas (identificadores, split, target, features [t0]).
+- **Tabla analítica de P1** (`vertex_files/orders_features.csv`): 96,470
+  órdenes × 23 columnas (identificadores, split, **4 targets** y features [t0]).
+  *(Re-ejecución D-30: antes `orders_p1_features.csv`, 21 columnas con un solo
+  target.)*
 - **Pipeline de preprocesamiento serializado** (`artifacts/pipeline_p1.joblib`):
   `ColumnTransformer` (escalado/encoding/imputación) ajustado solo en train, más
   metadatos (listas de features, target, parámetros).
@@ -85,6 +103,9 @@ Registradas en `bitacora_decisiones.md`:
 - **D-25** — Split temporal 70/15/15 por fecha de compra.
 - **D-26** — Imputación con sentido de negocio + pipeline serializado
   (`ColumnTransformer`).
+- **D-30** — Ampliación del FE a múltiples familias de modelos (re-ejecución):
+  cuatro targets (binario, multiclase, dos de regresión) sobre el mismo `X`;
+  CSV renombrado a `orders_features.csv`.
 
 ---
 
@@ -180,17 +201,63 @@ consuma sin recalcular parámetros.
 
 ---
 
-## 11. Próximos pasos
+## 11. Handoff a la Etapa 4 — instrucciones para rehacer el modelado (con IA)
 
-La **Etapa 4 — Modelado (clasificación de P1)** arranca con la tabla analítica y
-el pipeline de preprocesamiento ya listos. Toma como insumo el split temporal y la
-disciplina anti-leakage de esta etapa. Foco: añadir el estimador al `Pipeline`,
-entrenar un baseline y modelos (regresión logística, árboles/boosting), evaluar
-con ROC-AUC/PR-AUC/F1 (D-19) sobre el split temporal, y vigilar la `tasa_vendedor`
-y el régimen 2018.
+> Esta sección reemplaza a los antiguos archivos `contexto_previo_etapa_4.md`:
+> el contexto de arranque de la Etapa 4 vive aquí. Está redactada para que el
+> usuario de la Etapa 4 (que la rehará apoyándose en IA) tenga todo lo necesario.
 
-Responsable primario de la Etapa 4: **Data Scientist (Aguilar Lomas, Oscar
-Amaury)**, con apoyo del ML Engineer. Tag esperado al cierre: **V1.3.0**.
+**Insumos listos:**
+- Tabla analítica: `vertex_files/orders_features.csv` (96,470 × 23). Si el código
+  de modelado espera el archivo en el repo, copiarlo a
+  `data/processed/orders_features.csv`.
+- Preprocesador serializado: `artifacts/pipeline_p1.joblib` (ajustado solo en
+  train). Sus metadatos ahora son `classification_target`, `multiclass_target` y
+  `regression_targets` (ya **no** existe la clave única `target`).
+- Features: `X = NUMERIC_FEATURES + CATEGORICAL_FEATURES` (importables desde
+  `src/features/build_dataset.py`). El split temporal está en la columna `split`.
+
+**Targets disponibles (elegir `y` según el modelo; todos son labels [POST]):**
+- `entrega_tarde` — clasificación binaria (target principal del MVP).
+- `clase_entrega` — clasificación multiclase (`muy_temprano`/`a_tiempo`/`tarde`);
+  muy desbalanceado (87% `muy_temprano`) → usar macro-F1 y `class_weight`.
+- `dias_vs_promesa` — regresión (días vs promesa; >0 = tarde).
+- `dias_entrega_real` — regresión (días totales de entrega).
+
+**Qué debe hacer la Etapa 4 (objetivo de esta re-ejecución):**
+1. **Entrenar VARIOS modelos de machine learning** y compararlos, no uno solo:
+   - Clasificación de `entrega_tarde`: como mínimo un **baseline** + un modelo
+     **lineal** (Regresión Logística) + un modelo de **árbol/boosting**
+     (RandomForest / XGBoost / LightGBM).
+   - Opcional pero recomendado para tener más opciones: un clasificador
+     **multiclase** sobre `clase_entrega` y al menos un **regresor** sobre
+     `dias_vs_promesa` o `dias_entrega_real`.
+2. **Elegir el mejor modelo** por la métrica de D-19 (PR-AUC/recall/F1 para
+   clasificación; MAE/RMSE para regresión) medida en el split **`val`** temporal.
+   **Nunca** seleccionar ni ajustar mirando `test`; `test` se reporta una sola vez.
+3. **Graficar en `notebooks/04_modelado_VERTEX.ipynb`** (requisito explícito):
+   - **Cómo mejora el `recall`** a través de los modelos (p. ej. barras/línea de
+     recall por modelo, del baseline al mejor).
+   - **Matriz de confusión por modelo** (una por cada modelo entrenado).
+   - **Gráficas del modelo elegido**: curvas PR y ROC, calibración, importancias
+     de features y error por región / cold-start.
+4. **Mantener la disciplina anti-leakage (R-12):** usar solo `X` como features
+   (ningún target ni columna [POST]); reusar `build_preprocessor()` ajustado solo
+   en train; respetar el split temporal (sin CV aleatoria, D-25).
+
+**Archivos a actualizar por el renombrado del CSV (antes `orders_p1_features.csv`):**
+- `src/models/train.py` y `src/models/predict.py` → `DEFAULT_DATA`.
+- `tests/test_models.py` → ruta del dataset.
+- `notebooks/04_modelado_VERTEX.ipynb` → celda de carga.
+- Cualquier lectura de la clave `target` del `.joblib` → usar las nuevas claves.
+
+**Nota de historia:** ya existe un cierre previo de la Etapa 4 (`cierre-etapa-4.md`,
+D-27 a D-29, modelo XGBoost candidato) de la **primera** ejecución. Al rehacer la
+etapa, ese cierre se actualizará/versionará; las decisiones nuevas continúan en
+**D-31+**.
+
+Responsable primario de la Etapa 4: **Data Scientist / ML Engineer**. Tag esperado
+al cierre de la re-ejecución: a definir por el equipo.
 
 ---
 

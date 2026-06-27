@@ -545,6 +545,13 @@ mergeados por el mismo autor, violando temporalmente la convención.
 > código (`assert_sin_features_post`) verifica que ninguna columna [POST] entra como
 > feature. **Sin fuga detectada.** La vigilancia continúa en la evaluación final
 > (Etapa 6).
+>
+> **Re-ejecución (2026-06-27, Etapa 3 — D-30):** la ampliación a múltiples targets
+> (`clase_entrega`, `dias_vs_promesa`, `dias_entrega_real`) **no** relaja el riesgo:
+> los nuevos targets son labels [POST] y **nunca** son features; el `X` sigue siendo
+> `NUMERIC_FEATURES + CATEGORICAL_FEATURES`. El candado anti-fuga y la prueba
+> point-in-time de `tasa_vendedor` se mantienen. Al rehacer la Etapa 4 debe
+> auditarse la fuga **para cada familia de modelo** (binaria, multiclase y regresión).
 
 **Descripción:**
 El *target* `entrega_tarde` se construye con la fecha de entrega real. Si esa

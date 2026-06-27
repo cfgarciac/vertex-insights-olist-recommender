@@ -918,7 +918,7 @@ Toda variable se clasifica **[t0]** (disponible al comprar → *feature* legíti
 La guía de la Etapa 3 sugería partir de las nueve tablas crudas. Para esta etapa se dispone de un CSV ya consolidado a nivel ítem (`orders_consolidated.csv`) que integra ítems, pagos, reseñas, producto y geolocalización.
 
 **Decisión:**
-Construir la tabla analítica de P1 partiendo del CSV consolidado `orders_consolidated.csv`, no de las nueve tablas crudas. El script `src/features/build_dataset.py` parte de ese archivo y produce `vertex_files/orders_p1_features.csv`.
+Construir la tabla analítica de P1 partiendo del CSV consolidado `orders_consolidated.csv`, no de las nueve tablas crudas. El script `src/features/build_dataset.py` parte de ese archivo y produce `vertex_files/orders_features.csv`.
 
 **Alternativas consideradas:**
 - Reconstruir desde las 9 tablas crudas — descartado por redundante: el consolidado ya integra las uniones validadas en el EDA y acelera la etapa (R-02).
@@ -1118,9 +1118,43 @@ Conservar el **periodo completo** en esta etapa (sin recortar la cola), **report
 
 ---
 
+### D-30 — Ampliación del feature engineering a múltiples familias de modelos (re-ejecución de la Etapa 3)
+
+**Fecha:** 2026-06-27
+**Estado:** Aceptada
+**Responsable:** Data Scientist (Aguilar Lomas, Oscar Amaury)
+
+**Contexto:**
+La Etapa 3 original (D-20 a D-26) dejó la tabla analítica acotada a **un solo target de clasificación binaria** (`entrega_tarde`). Al planificar la re-ejecución de las etapas 3 y 4 se busca **más libertad de modelado**: poder comparar varias familias (clasificación binaria, multiclase y regresión) para elegir el mejor modelo en etapas futuras, sin rehacer el feature engineering ni el split.
+
+**Decisión:**
+Mantener intactos el universo (`delivered`, D-20), la granularidad (orden, D-23), la disciplina anti-leakage (D-21/R-12), la tasa del vendedor point-in-time (D-24) y el split temporal (D-25), y **ampliar solo los targets** sobre el **mismo** conjunto de features [t0]:
+- `entrega_tarde` — clasificación binaria (target principal del MVP).
+- `clase_entrega` — clasificación multiclase: `tarde` (`dias_vs_promesa > 0`), `a_tiempo` (`−3..0`), `muy_temprano` (`< −3` días). Umbral `UMBRAL_MUY_TEMPRANO_DIAS = 3`, parámetro de negocio ajustable.
+- `dias_vs_promesa` — regresión (días de holgura vs la promesa; >0 = tarde).
+- `dias_entrega_real` — regresión (días totales compra → entrega).
+Todos los targets son [POST] (solo etiquetan; nunca son features). El CSV de salida se renombra a **`orders_features.csv`** (antes `orders_p1_features.csv`) y pasa de 21 a 23 columnas. El `.joblib` registra `classification_target`, `multiclass_target` y `regression_targets` en vez de un único `target`.
+
+**Alternativas consideradas:**
+- Dejar solo `entrega_tarde` y derivar el resto en la Etapa 4 — descartado: dispersa la lógica de etiquetado y rompe la reproducibilidad de un único script de FE.
+- Añadir features específicas por familia (p. ej. media de días del vendedor) — diferido: el set [t0] actual es agnóstico al modelo; se evita complejidad sin evidencia de necesidad.
+
+**Consecuencias:**
+- Positivas:
+  - La Etapa 4 puede entrenar y comparar clasificadores y regresores con el mismo `X` y el mismo pipeline.
+  - Mantiene una sola fuente de verdad para el etiquetado, trazable y testeada (anti-fuga OK).
+- Negativas o trade-offs:
+  - `clase_entrega` queda muy desbalanceado (87% `muy_temprano`), reflejo de que Olist promete con mucho colchón (mediana `dias_vs_promesa` ≈ −11.9 días); exige métricas/pesos adecuados en multiclase.
+  - El renombrado del CSV obliga a actualizar las referencias del código de la Etapa 4 (ver handoff en `docs/etapas/cierre-etapa-3.md`).
+
+**Etapa asociada:** 3 (re-ejecución)
+
+---
+
 *Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
 planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
 D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
 reemplazadas); D-22 a D-26 al feature engineering de la Etapa 3; D-27 a D-29 al
-modelado de la Etapa 4. Nuevas decisiones se agregarán durante la ejecución del
-proyecto.*
+modelado de la Etapa 4; D-30 a la re-ejecución de la Etapa 3 (ampliación a
+múltiples familias de modelos). Nuevas decisiones se agregarán durante la
+ejecución del proyecto.*

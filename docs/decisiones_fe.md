@@ -1,15 +1,22 @@
-# Feature Engineering — Decisiones (P1 · entrega tardía)
+# Feature Engineering — Decisiones (P1 · desempeño de entrega)
 
 > Documento técnico de la Etapa 3. Registra cómo se construyó la tabla
-> analítica y el pipeline de features para predecir `entrega_tarde`, con
-> énfasis en la disciplina anti-leakage (D-21, R-12). Es el insumo directo de la
-> Etapa 4 (modelado).
+> analítica y el pipeline de features para modelar el **desempeño de entrega**,
+> con énfasis en la disciplina anti-leakage (D-21, R-12). Es el insumo directo
+> de la Etapa 4 (modelado).
+>
+> **Actualización (2026-06-27, re-ejecución de la Etapa 3, D-30).** El FE se
+> amplió para habilitar **varias familias de modelos** (clasificación binaria,
+> clasificación multiclase y regresión) sin rehacer features ni split: se
+> promueven varios *targets* [POST] sobre el **mismo** conjunto de features [t0].
+> El CSV de salida pasó a llamarse `orders_features.csv` (antes
+> `orders_p1_features.csv`) y de 21 a 23 columnas.
 
-**Fecha:** 2026-06-20
+**Fecha:** 2026-06-20 (ampliado 2026-06-27)
 **Responsable:** Data Scientist (Aguilar Lomas, Oscar Amaury)
 **Artefactos asociados:**
 - Script reproducible: `src/features/build_dataset.py`
-- Tabla analítica: `vertex_files/orders_p1_features.csv` (96,470 × 21)
+- Tabla analítica: `vertex_files/orders_features.csv` (96,470 × 23)
 - Pipeline serializado: `artifacts/pipeline_p1.joblib`
 - EDA de cambios: `notebooks/03_EDA_VERTEX.ipynb`
 
@@ -19,12 +26,13 @@
 
 Se transformó el CSV consolidado de Olist a nivel ítem
 (`orders_consolidated.csv`, 112,650 filas) en una **tabla analítica a nivel
-orden** sobre el universo `delivered` (96,470 órdenes), con el target
-`entrega_tarde` y un conjunto de features **estrictamente [t0]** (conocidas en
-el momento de la compra). Las transformaciones que aprenden parámetros de los
-datos (escalado, encoding, imputación estadística) se encapsulan en un
-`Pipeline`/`ColumnTransformer` ajustado **solo sobre el split de entrenamiento**
-y serializado con `joblib`.
+orden** sobre el universo `delivered` (96,470 órdenes), con **varios targets**
+(clasificación y regresión) y un conjunto de features **estrictamente [t0]**
+(conocidas en el momento de la compra). Las transformaciones que aprenden
+parámetros de los datos (escalado, encoding, imputación estadística) se
+encapsulan en un `Pipeline`/`ColumnTransformer` ajustado **solo sobre el split
+de entrenamiento** y serializado con `joblib`. El **mismo** `X` (features [t0])
+alimenta a todas las familias de modelos; solo cambia la columna `y`.
 
 ---
 
@@ -49,13 +57,29 @@ y serializado con `joblib`.
 
 ---
 
-## Target: definición y tasa base
+## Targets disponibles (clasificación y regresión)
 
-- `entrega_tarde = (order_delivered_customer_date > order_estimated_delivery_date)`,
-  definido **contra la promesa** (D-20).
-- **Tasa base = 8.11%** (desbalance sano; cuadra con el EDA de la Etapa 2).
-- Se conserva `dias_vs_promesa` (días entre entrega real y estimada) **solo para
-  análisis**; es información [POST] y **no es feature**.
+La tabla expone **cuatro targets** [POST] sobre el mismo `X` (D-30). Todos son
+*labels* (se calculan con fechas posteriores a la compra) y **ninguno es
+feature**. La Etapa 4 elige `y` según la familia de modelo:
+
+| Target | Tipo | Definición | Uso |
+|---|---|---|---|
+| `entrega_tarde` | clasificación binaria | `entregada > estimada` (1=tarde) | Clasificadores (target principal del MVP) |
+| `clase_entrega` | clasificación multiclase | `tarde` (>0) · `a_tiempo` (−3..0) · `muy_temprano` (<−3 d) | Clasificación multiclase / análisis de severidad |
+| `dias_vs_promesa` | regresión | `entregada − estimada` en días (>0 = tarde) | Regresión del adelanto/retraso vs promesa |
+| `dias_entrega_real` | regresión | `entregada − compra` en días | Regresión del tiempo total de entrega |
+
+- **Tasa base `entrega_tarde` = 8.11%** (desbalance sano; cuadra con el EDA).
+- **Distribución de `clase_entrega`:** `muy_temprano` 86.97% · `tarde` 8.11% ·
+  `a_tiempo` 4.92%. El fuerte sesgo a `muy_temprano` refleja que **Olist promete
+  con mucho colchón** (mediana de `dias_vs_promesa` ≈ **−11.9 días**, es decir,
+  se entrega casi 12 días antes de lo prometido en la mediana). El umbral de 3
+  días (`UMBRAL_MUY_TEMPRANO_DIAS`) es un **parámetro de negocio ajustable**: si
+  la Etapa 4 necesita una clase media más poblada, puede subirse.
+- **Anti-leakage:** la `tasa_vendedor` (feature [t0]) sigue calculándose sobre
+  `entrega_tarde` con ventana point-in-time; los targets de regresión **no**
+  realimentan ninguna feature.
 
 ---
 
@@ -82,8 +106,10 @@ y serializado con `joblib`.
 
 **Excluidas explícitamente como features ([POST], solo etiquetan o son fuga):**
 fechas de entrega real y de carrier, `delivery_days`, `delivery_delay_days`,
-`is_late_delivery`, y **todo el bloque de reseñas** (`avg_review_score`,
-`is_dissatisfied`, comentarios, etc.), que ocurren después de la entrega.
+`is_late_delivery`, los cuatro *targets* (`entrega_tarde`, `clase_entrega`,
+`dias_vs_promesa`, `dias_entrega_real`), y **todo el bloque de reseñas**
+(`avg_review_score`, `is_dissatisfied`, comentarios, etc.), que ocurren después
+de la entrega.
 
 ---
 
@@ -170,8 +196,19 @@ fechas de entrega real y de carrier, `delivery_days`, `delivery_delay_days`,
 ## Pendientes / supuestos para la Etapa 4
 
 - El pipeline serializado solo contiene el **preprocesador**; la Etapa 4 añade el
-  estimador al final del `Pipeline`.
+  estimador al final del `Pipeline` (el mismo `prep` sirve para clasificadores y
+  regresores; en regresión, omitir el `StandardScaler` no es obligatorio).
+- **Entrenar varias familias y elegir la mejor** (D-30): para clasificación,
+  comparar al menos baseline + lineal + árbol/boosting sobre `entrega_tarde`;
+  opcionalmente `clase_entrega` (multiclase) y regresión sobre `dias_vs_promesa`
+  o `dias_entrega_real`. Selección por la métrica de D-19 en el split `val`
+  temporal (nunca en `test`).
+- En el notebook de la Etapa 4 graficar, como mínimo: **mejora del recall** entre
+  modelos, **matriz de confusión por modelo**, y las **gráficas del modelo
+  elegido** (curvas PR/ROC, calibración, importancias). Ver el handoff en
+  `docs/etapas/cierre-etapa-3.md`.
 - `tasa_vendedor` es la feature más potente y más sensible a fuga: si el modelo
   da métricas sospechosamente altas, revisar primero su cálculo (R-12).
-- Evaluar si conviene una variante de regresión sobre `dias_vs_promesa`.
+- `clase_entrega` está muy desbalanceado (87% `muy_temprano`): usar métricas y
+  pesos adecuados (macro-F1, `class_weight`) si se modela multiclase.
 - Vigilar el tramo final de 2018 (R-14) al medir desempeño en el split de test.
