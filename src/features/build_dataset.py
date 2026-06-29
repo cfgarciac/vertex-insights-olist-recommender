@@ -1,11 +1,18 @@
-"""ETL y feature engineering de P1 — predicción de entrega tardía (entrega_tarde).
+"""ETL y feature engineering de P1 — desempeño de entrega (multi-modelo).
 
 Etapa 3 del Proyecto Final (Vertex Insights). Toma el CSV consolidado de Olist a
 nivel ítem y produce:
 
-  1. Una tabla analítica a NIVEL ORDEN (universo `delivered`) con el target
-     `entrega_tarde` y un conjunto de features estrictamente [t0] (conocidas en el
-     momento de la compra), respetando la disciplina anti-leakage (D-21, R-12).
+  1. Una tabla analítica a NIVEL ORDEN (universo `delivered`) con un conjunto de
+     features estrictamente [t0] (conocidas en el momento de la compra) y
+     **varios targets** que habilitan distintas familias de modelos sin rehacer
+     el feature engineering (disciplina anti-leakage D-21 / R-12):
+       - `entrega_tarde`     — clasificación binaria (llegó tarde sí/no).
+       - `clase_entrega`     — clasificación multiclase (muy_temprano / a_tiempo / tarde).
+       - `dias_vs_promesa`   — regresión (días de holgura vs la promesa; >0 = tarde).
+       - `dias_entrega_real` — regresión (días totales compra → entrega).
+     Todos los targets son [POST] (solo etiquetan); el **mismo set de features**
+     [t0] alimenta a clasificadores y regresores: solo cambia la `y`.
   2. Un pipeline de preprocesamiento de scikit-learn (ColumnTransformer dentro de
      un Pipeline), ajustado SOLO sobre el split de entrenamiento, serializado con
      joblib para que la Etapa 4 lo consuma sin recalcular parámetros.
@@ -18,11 +25,12 @@ Decisiones de diseño relevantes (ver docs/decisiones_fe.md):
     (solo órdenes ANTERIORES del vendedor), con mínimo de 5 órdenes previas y
     respaldo a la tasa global del TRAIN + flag `sin_historial_vendedor`.
   - Split temporal por fecha de compra (sin aleatoriedad), 70/15/15.
+  - Alcance multi-modelo de los targets (re-ejecución de la Etapa 3): D-30.
 
 Uso:
     python -m src.features.build_dataset \
         --input  /Users/amaury/henry/Proyecto_Final/vertex_files/orders_consolidated.csv \
-        --output /Users/amaury/henry/Proyecto_Final/vertex_files/orders_p1_features.csv
+        --output /Users/amaury/henry/Proyecto_Final/vertex_files/orders_features.csv
 """
 
 from __future__ import annotations
@@ -41,13 +49,17 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 # Rutas por defecto
 # --------------------------------------------------------------------------- #
 DEFAULT_INPUT = "/Users/amaury/henry/Proyecto_Final/vertex_files/orders_consolidated.csv"
-DEFAULT_OUTPUT = "/Users/amaury/henry/Proyecto_Final/vertex_files/orders_p1_features.csv"
+DEFAULT_OUTPUT = "/Users/amaury/henry/Proyecto_Final/vertex_files/orders_features.csv"
 DEFAULT_PIPELINE = (
     Path(__file__).resolve().parents[2] / "artifacts" / "pipeline_p1.joblib"
 )
 
 # Parámetros de la tasa del vendedor
 MIN_ORDENES_VENDEDOR = 5
+
+# Umbral (días antes de la promesa) para separar "a_tiempo" de "muy_temprano"
+# en el target multiclase `clase_entrega` (D-30).
+UMBRAL_MUY_TEMPRANO_DIAS = 3
 
 # Columnas [POST]: conocidas solo DESPUÉS de la compra. Prohibidas como feature;
 # solo sirven para construir el target. (Disciplina anti-leakage D-21 / R-12.)
@@ -97,6 +109,13 @@ CATEGORICAL_FEATURES = [
     "mismo_estado",
     "sin_historial_vendedor",
 ]
+
+# Targets [POST]: solo etiquetan, NUNCA son features. El mismo X (NUMERIC +
+# CATEGORICAL) alimenta a todas las familias; solo cambia la columna `y` (D-30).
+CLASSIFICATION_TARGET = "entrega_tarde"      # binaria 0/1
+MULTICLASS_TARGET = "clase_entrega"          # muy_temprano / a_tiempo / tarde
+REGRESSION_TARGETS = ["dias_vs_promesa", "dias_entrega_real"]
+TARGETS = [CLASSIFICATION_TARGET, MULTICLASS_TARGET] + REGRESSION_TARGETS
 
 
 # --------------------------------------------------------------------------- #
@@ -185,16 +204,31 @@ def build_order_table(df: pd.DataFrame) -> pd.DataFrame:
 # 3. Target y features [t0] directas
 # --------------------------------------------------------------------------- #
 def add_target_and_direct_features(orders: pd.DataFrame) -> pd.DataFrame:
-    # --- Target [POST para etiquetar, no es feature] --------------------- #
+    # --- Targets [POST para etiquetar, NO son features] (D-30) ----------- #
+    # Clasificación binaria: llegó después de la fecha prometida.
     orders["entrega_tarde"] = (
         orders["order_delivered_customer_date"]
         > orders["order_estimated_delivery_date"]
     ).astype(int)
-    # Variante continua, solo para análisis (NO se usa como feature).
+    # Regresión 1: días de holgura frente a la promesa (>0 = tarde, <0 = adelantado).
     orders["dias_vs_promesa"] = (
         orders["order_delivered_customer_date"]
         - orders["order_estimated_delivery_date"]
     ).dt.total_seconds() / 86400.0
+    # Regresión 2: días totales de entrega (compra → entrega real).
+    orders["dias_entrega_real"] = (
+        orders["order_delivered_customer_date"]
+        - orders["order_purchase_timestamp"]
+    ).dt.total_seconds() / 86400.0
+    # Clasificación multiclase: separa el adelanto grande del ajustado.
+    orders["clase_entrega"] = np.select(
+        [
+            orders["dias_vs_promesa"] > 0,
+            orders["dias_vs_promesa"] < -UMBRAL_MUY_TEMPRANO_DIAS,
+        ],
+        ["tarde", "muy_temprano"],
+        default="a_tiempo",
+    )
 
     # --- Features [t0] --------------------------------------------------- #
     orders["dias_prometidos"] = (
@@ -335,10 +369,20 @@ def run(input_path: str, output_path: str, pipeline_path: Path) -> pd.DataFrame:
     orders = build_order_table(df)
     print(f"      órdenes: {len(orders):,}")
 
-    print("[3/7] Target y features [t0] directas ...")
+    print("[3/7] Targets y features [t0] directas ...")
     orders = add_target_and_direct_features(orders)
     base_rate = orders["entrega_tarde"].mean()
     print(f"      tasa base entrega_tarde: {base_rate*100:.2f}%")
+    dist_clase = orders["clase_entrega"].value_counts(normalize=True).mul(100).round(2)
+    print(f"      clase_entrega (%): {dist_clase.to_dict()}")
+    print(
+        "      dias_vs_promesa  -> "
+        f"media {orders['dias_vs_promesa'].mean():.1f}, mediana {orders['dias_vs_promesa'].median():.1f}"
+    )
+    print(
+        "      dias_entrega_real-> "
+        f"media {orders['dias_entrega_real'].mean():.1f}, mediana {orders['dias_entrega_real'].median():.1f}"
+    )
 
     print("[4/7] Split temporal por fecha de compra ...")
     orders = temporal_split(orders)
@@ -369,7 +413,9 @@ def run(input_path: str, output_path: str, pipeline_path: Path) -> pd.DataFrame:
             "preprocessor": preprocessor,
             "numeric_features": NUMERIC_FEATURES,
             "categorical_features": CATEGORICAL_FEATURES,
-            "target": "entrega_tarde",
+            "classification_target": CLASSIFICATION_TARGET,
+            "multiclass_target": MULTICLASS_TARGET,
+            "regression_targets": REGRESSION_TARGETS,
             "min_ordenes_vendedor": MIN_ORDENES_VENDEDOR,
             "global_rate_train": float(global_rate_train),
         },
@@ -379,7 +425,8 @@ def run(input_path: str, output_path: str, pipeline_path: Path) -> pd.DataFrame:
 
     # --- Tabla analítica de salida --------------------------------------- #
     keep = (
-        ["order_id", "order_purchase_timestamp", "split", "entrega_tarde", "dias_vs_promesa"]
+        ["order_id", "order_purchase_timestamp", "split"]
+        + TARGETS
         + NUMERIC_FEATURES
         + CATEGORICAL_FEATURES
     )
