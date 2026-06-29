@@ -61,6 +61,7 @@ from sklearn.metrics import (  # noqa: E402
     brier_score_loss,
     roc_auc_score,
 )
+from sklearn.model_selection import TimeSeriesSplit  # noqa: E402
 from sklearn.pipeline import Pipeline  # noqa: E402
 from sklearn.utils.class_weight import compute_sample_weight  # noqa: E402
 from xgboost import XGBClassifier, XGBRegressor  # noqa: E402
@@ -250,14 +251,29 @@ def run_binario(train, val, test) -> dict:
     tabla_cold = ev.analisis_cold_start(test, y_te, proba_test_all[mejor], umbral_f1)
 
     # --- Figuras ----------------------------------------------------------- #
-    curvas = {k: v for k, v in proba_test_all.items() if not k.endswith("_calibrado")}
+    FAMILIAS = ["logistic_regression", "random_forest", "hist_gradient_boosting", "xgboost"]
+    curvas = {k: v for k, v in proba_test_all.items() if not k.endswith(("_calibrado", "_reventaneo"))}
     ev.graficar_curvas_pr_roc(curvas, y_te, FIG_DIR)
     cal_plot = {mejor: proba_test_all[mejor]}
     if calib["ok"]:
         cal_plot[f"{mejor}_calibrado"] = proba_test_all[f"{mejor}_calibrado"]
     ev.graficar_calibracion(cal_plot, y_te, FIG_DIR)
     ev.graficar_importancias(importancias, f"Importancias — {mejor} (binario)", FIG_DIR, "04_importancias_binario.png")
-    ev.graficar_error_regional(tabla_region, FIG_DIR)
+    # (revisión Amaury #1) La figura por región (03) se genera en run_regresion con el
+    # MODELO RECOMENDADO en su punto de operación (no el binario @F1, que subestima el recall).
+    # (revisión Amaury #2) recall comparado por modelo
+    ev.graficar_recall_por_modelo({n: resultados[n]["test"] for n in FAMILIAS}, FIG_DIR, "07_recall_por_modelo.png")
+    # (revisión Amaury #3) matriz de confusión binaria por CADA modelo, en el punto de
+    # operación que se desplegaría (alto recall), no el umbral F1 que subestima la tardanza.
+    RECALL_CM = 0.80
+    preds_por_modelo = {
+        n: (proba_test_all[n] >= ev.umbral_para_recall(y_va, proba_val_all[n], RECALL_CM)).astype(int)
+        for n in FAMILIAS
+    }
+    ev.graficar_matrices_confusion_binarias(
+        preds_por_modelo, y_te, FIG_DIR, "08_matrices_confusion_binarias.png",
+        subtitulo=f"punto recall≈{RECALL_CM:.2f} (el que se desplegaría)",
+    )
 
     # --- Serialización ----------------------------------------------------- #
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
@@ -464,6 +480,16 @@ def run_regresion(train, val, test) -> dict:
     print(f"  modelo de riesgo confiable: ROC={riesgo['roc_auc']:.3f} PR-AUC={riesgo['pr_auc']:.3f} "
           f"Brier={riesgo['brier']:.3f}  (regresion calibrada)")
 
+    # (revisión Amaury #1) Recall por región DEL MODELO RECOMENDADO en su punto de operación
+    # (recall≈0.70). Reemplaza la versión que usaba el binario @F1 (subestimaba el recall).
+    u_fig = puntos["recall_obj_70"]["umbral"]
+    pred_fig = (pte >= u_fig).astype(int)
+    tabla_region_riesgo = ev.analisis_por_region(test, y_te_bin, pred_fig)
+    ev.graficar_region_separado(
+        tabla_region_riesgo, FIG_DIR, "03_region_separado.png",
+        etiqueta_recall="modelo recomendado (regresión calibrada) · punto recall≈0.70",
+    )
+
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     joblib.dump(
         {
@@ -582,6 +608,12 @@ def escribir_reporte(salida: dict) -> None:
     L.append(f"\n- **Binario derivado** (predecir días y alertar si > 0): PR-AUC **{d['pr_auc']:.4f}**, "
              f"ROC-AUC **{d['roc_auc']:.4f}**, recall(umbral 0) {d['recall_umbral0']:.3f}. "
              "Vía alternativa al clasificador directo.")
+    L.append("\n> **Importante (interpretación):** la regresión se usa como **ranqueador de riesgo** "
+             "(su salida se **calibra** a probabilidad de retraso), **NO** como estimador de los días "
+             "exactos. Por la cola pesada y el techo de datos, *encoge* las predicciones hacia el promedio "
+             "y **subestima la magnitud de los tardíos** (ver `06_regresion_pred_vs_real.png`: las órdenes "
+             "muy tardías se predicen cerca de 0). Por eso se opera con el **umbral calibrado**, no con "
+             "`días>0` (que daría recall ≈0.03).")
     L.append("")
     r = rg["modelo_riesgo_confiable"]
     L.append("## 4. Modelo de riesgo CONFIABLE (recomendado)\n")
@@ -597,17 +629,72 @@ def escribir_reporte(salida: dict) -> None:
     L.append("\n> **Hallazgo (D-32):** añadir features [t0] derivadas (tasas point-in-time por ruta/categoría, "
              "estacionalidad) **no mejora** — degrada el test (ROC 0.696→0.591) por drift de régimen (R-14). "
              "El techo de P1 lo fijan los datos, no el modelado.\n")
+    cvd = salida.get("cv_temporal")
+    if cvd:
+        L.append("## 5. Validación cruzada TEMPORAL (robustez ante estacionalidad)\n")
+        L.append("TimeSeriesSplit (5 folds) sobre la serie ordenada por fecha: cada fold entrena en el "
+                 "pasado y evalúa en el período siguiente (no es aleatoria; no sustituye al test). "
+                 "Comprueba si los modelos aguantan los cambios estacionales/atípicos de la serie (R-14).\n")
+        L.append("| Modelo | ROC-AUC medio | ± std | PR-AUC medio | ± std |")
+        L.append("|---|---|---|---|---|")
+        for m, dd in cvd.items():
+            L.append(f"| {m} | {dd['roc_auc_media']:.3f} | {dd['roc_auc_std']:.3f} | "
+                     f"{dd['pr_auc_media']:.3f} | {dd['pr_auc_std']:.3f} |")
+        L.append("\nDesviación baja ⇒ modelo robusto entre períodos. Ver `figuras/09_cv_temporal.png` "
+                 "(la línea de tasa base muestra dónde están los períodos atípicos).\n")
+
     L.append("## Artefactos y figuras\n")
     L.append("- Modelos: `artifacts/modelo_riesgo_p1.joblib` (recomendado), `modelo_binario.joblib`, "
              "`modelo_multiclase.joblib`, `modelo_regresion.joblib`.")
-    L.append("- Figuras: `reports/multimodelo/figuras/` (curvas PR/ROC, calibración, importancias, "
-             "matriz de confusión, regresión pred-vs-real, error regional).")
+    L.append("- Figuras: `reports/multimodelo/figuras/` — curvas PR/ROC (01), calibración (02), "
+             "región tasa-real vs recall **separadas** (03), importancias (04), confusión multiclase (05), "
+             "regresión pred-vs-real (06), **recall por modelo** (07), **matrices de confusión binarias por "
+             "modelo** (08), **CV temporal** (09).")
+    L.append("- **Punto de operación en cada figura (a propósito difieren):** la **03** usa el modelo "
+             "recomendado en su punto de despliegue (recall≈0.70); la **07** compara los modelos en su "
+             "umbral **F1** (recall natural, para rankearlos); la **08** usa el punto de **despliegue "
+             "(recall≈0.80)**. Por eso el recall no es el mismo entre figuras: cada una responde a una "
+             "pregunta distinta.")
     L.append("- Métricas reproducibles: `reports/multimodelo/metrics_multimodelo.json`.\n")
     L.append("*Mismas features [t0] y split temporal de la Etapa 3; sin fuga. Reproducible con "
              "`python -m src.models.train_multimodelo`.*")
 
     with open(REPORTS / "resultados_multimodelo.md", "w", encoding="utf-8") as f:
         f.write("\n".join(L))
+
+
+# --------------------------------------------------------------------------- #
+# Validación cruzada TEMPORAL (robustez ante estacionalidad) — revisión Amaury #4
+# --------------------------------------------------------------------------- #
+def cross_validation_temporal(df, n_splits: int = 5) -> dict:
+    """TimeSeriesSplit sobre la serie completa ordenada por fecha.
+
+    Diagnóstico de robustez: cada fold entrena en el pasado y evalúa en el bloque
+    siguiente (un período/temporada distinto). NO es validación aleatoria (eso
+    reintroduciría fuga temporal, D-25) y NO sustituye al test hold-out (que se
+    reporta una sola vez). Sirve para ver si los modelos se mantienen estables
+    ante los cambios estacionales / comportamientos atípicos de la serie (R-14).
+    """
+    d = df.sort_values(["order_purchase_timestamp", "order_id"]).reset_index(drop=True)
+    X, y = d[X_COLS], d[CLASSIFICATION_TARGET].values
+    tscv = TimeSeriesSplit(n_splits=n_splits)
+    familias = ["logistic_regression", "random_forest", "hist_gradient_boosting", "xgboost"]
+    cv = {n: {"pr_auc": [], "roc_auc": [], "recall": [], "tasa_base": []} for n in familias}
+    print(f"\n=== Validación cruzada TEMPORAL (TimeSeriesSplit, {n_splits} folds) — robustez estacional ===")
+    for k, (itr, ite) in enumerate(tscv.split(X), 1):
+        ytr, yte = y[itr], y[ite]
+        Xtr, Xte = X.iloc[itr], X.iloc[ite]
+        for nombre, pipe in familias_binario(ytr).items():
+            pipe.fit(Xtr, ytr)
+            u = ev.seleccionar_umbral_f1(ytr, _proba1(pipe, Xtr))
+            m = ev.calcular_metricas(yte, _proba1(pipe, Xte), u)
+            cv[nombre]["pr_auc"].append(m["pr_auc"])
+            cv[nombre]["roc_auc"].append(m["roc_auc"])
+            cv[nombre]["recall"].append(m["recall"])
+            cv[nombre]["tasa_base"].append(float(yte.mean()))
+        print(f"  fold {k}: n_train={len(itr):>6} n_test={len(ite):>5} "
+              f"tasa_base(fold)={yte.mean()*100:4.1f}%  ROC(xgb)={cv['xgboost']['roc_auc'][-1]:.3f}")
+    return cv
 
 
 # --------------------------------------------------------------------------- #
@@ -629,6 +716,18 @@ def run(data_path: Path) -> dict:
         "binario": run_binario(train, val, test),
         "multiclase": run_multiclase(train, val, test),
         "regresion": run_regresion(train, val, test),
+    }
+    cv = cross_validation_temporal(df, n_splits=5)
+    ev.graficar_cv_temporal(cv, FIG_DIR, "09_cv_temporal.png")
+    salida["cv_temporal"] = {
+        m: {
+            "roc_auc_media": float(np.mean(d["roc_auc"])), "roc_auc_std": float(np.std(d["roc_auc"])),
+            "pr_auc_media": float(np.mean(d["pr_auc"])), "pr_auc_std": float(np.std(d["pr_auc"])),
+            "roc_auc_folds": [round(x, 4) for x in d["roc_auc"]],
+            "recall_folds": [round(x, 4) for x in d["recall"]],
+            "tasa_base_folds": [round(x, 4) for x in d["tasa_base"]],
+        }
+        for m, d in cv.items()
     }
     escribir_reporte(salida)
     print(f"\n[ok] reporte -> {REPORTS / 'resultados_multimodelo.md'}")

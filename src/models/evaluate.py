@@ -364,3 +364,103 @@ def graficar_pred_vs_real(
     ax.set(xlabel="Real (días)", ylabel="Predicho (días)", title=titulo)
     ax.legend(fontsize=8)
     _guardar(fig, fig_dir, nombre)
+
+
+# --------------------------------------------------------------------------- #
+# Gráficas pedidas en la revisión de la Etapa 4 (Amaury)
+# --------------------------------------------------------------------------- #
+def graficar_region_separado(tabla: pd.DataFrame, fig_dir: Path, nombre: str, etiqueta_recall: str = "") -> None:
+    """Dos paneles SEPARADOS porque miden cosas distintas:
+    (izq) % real de entregas tardías por región; (der) recall del modelo por región.
+    No se superponen para no sugerir que son comparables en el mismo eje.
+    """
+    t = tabla[tabla["region"] != "Otro"].copy().sort_values("tasa_tarde_real", ascending=False)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+    ax1.bar(t["region"], t["tasa_tarde_real"] * 100, color="#c0504d")
+    ax1.set(title="Tasa REAL de entregas tardías por región",
+            ylabel="% de órdenes que llegan tarde", xlabel="Región")
+    for i, v in enumerate(t["tasa_tarde_real"]):
+        ax1.text(i, v * 100, f"{v*100:.1f}%", ha="center", va="bottom", fontsize=9)
+    ax2.bar(t["region"], t["recall_tarde"], color="#2b6cb0")
+    titulo_recall = ("RECALL por región — " + etiqueta_recall) if etiqueta_recall else \
+        "RECALL del modelo por región (capacidad de detección)"
+    ax2.set(title=titulo_recall,
+            ylabel="Recall (fracción de tardíos detectados)", xlabel="Región", ylim=(0, 1))
+    for i, v in enumerate(t["recall_tarde"]):
+        if not np.isnan(v):
+            ax2.text(i, v, f"{v:.2f}", ha="center", va="bottom", fontsize=9)
+    fig.suptitle("Por región: la TASA REAL (qué tan tarde llega) y el RECALL (cuánto detecta el "
+                 "modelo) son métricas distintas — se grafican por separado", fontsize=10)
+    _guardar(fig, fig_dir, nombre)
+
+
+def graficar_recall_por_modelo(metricas_por_modelo: dict, fig_dir: Path, nombre: str) -> None:
+    """Compara entre modelos del binario (test, umbral F1): recall, precision y PR-AUC."""
+    nombres = list(metricas_por_modelo.keys())
+    recall = [metricas_por_modelo[n]["recall"] for n in nombres]
+    prec = [metricas_por_modelo[n]["precision"] for n in nombres]
+    prauc = [metricas_por_modelo[n]["pr_auc"] for n in nombres]
+    x = np.arange(len(nombres)); w = 0.27
+    fig, ax = plt.subplots(figsize=(10, 5.5))
+    ax.bar(x - w, recall, w, label="Recall", color="#2b6cb0")
+    ax.bar(x, prec, w, label="Precision", color="#c0504d")
+    ax.bar(x + w, prauc, w, label="PR-AUC", color="#5a9367")
+    for i in range(len(nombres)):
+        ax.text(x[i] - w, recall[i], f"{recall[i]:.2f}", ha="center", va="bottom", fontsize=8)
+    ax.set_xticks(x, nombres, rotation=20, ha="right")
+    ax.set(title="Comparación por modelo — binario (test, umbral F1)", ylabel="Valor")
+    ax.legend()
+    _guardar(fig, fig_dir, nombre)
+
+
+def graficar_matrices_confusion_binarias(
+    preds_por_modelo: dict, y_true: np.ndarray, fig_dir: Path, nombre: str,
+    subtitulo: str = "umbral F1",
+) -> None:
+    """Una matriz de confusión por CADA modelo binario entrenado (grid, normalizada por fila)."""
+    labels = [0, 1]; nice = ["a tiempo (0)", "tarde (1)"]
+    modelos = list(preds_por_modelo.keys()); n = len(modelos)
+    cols = 2; rows = int(np.ceil(n / cols))
+    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4.3 * rows))
+    axes = np.atleast_1d(axes).ravel()
+    for ax, m in zip(axes, modelos):
+        cm = confusion_matrix(y_true, preds_por_modelo[m], labels=labels).astype(float)
+        cmn = cm / cm.sum(axis=1, keepdims=True).clip(min=1e-9)
+        ax.imshow(cmn, cmap="Blues", vmin=0, vmax=1)
+        ax.set_xticks([0, 1], nice, fontsize=8)
+        ax.set_yticks([0, 1], nice, fontsize=8)
+        for i in range(2):
+            for j in range(2):
+                ax.text(j, i, f"{int(cm[i, j])}\n{cmn[i, j]:.2f}", ha="center", va="center",
+                        color="white" if cmn[i, j] > 0.5 else "black", fontsize=9)
+        ax.set(title=m, xlabel="Predicho", ylabel="Real")
+    for ax in axes[n:]:
+        ax.axis("off")
+    fig.suptitle(f"Matrices de confusión por modelo — binario (test, {subtitulo}; normalizadas por fila)", fontsize=11)
+    _guardar(fig, fig_dir, nombre)
+
+
+def graficar_cv_temporal(cv: dict, fig_dir: Path, nombre: str) -> None:
+    """Estabilidad de cada métrica a lo largo de los folds temporales (TimeSeriesSplit).
+
+    `cv` = {modelo: {'pr_auc': [...], 'roc_auc': [...], 'recall': [...], 'tasa_base': [...]}}.
+    Si las líneas se mantienen planas → modelo robusto ante cambios estacionales; si caen en
+    algún fold → sensible al régimen de ese período.
+    """
+    paneles = [("roc_auc", "ROC-AUC"), ("pr_auc", "PR-AUC"), ("recall", "Recall")]
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.6))
+    for ax, (key, tit) in zip(axes, paneles):
+        for m, d in cv.items():
+            folds = np.arange(1, len(d[key]) + 1)
+            ax.plot(folds, d[key], "o-", lw=1.8, label=m)
+        ax.set(title=f"{tit} por fold", xlabel="Fold temporal (períodos sucesivos →)", ylabel=tit)
+        ax.grid(alpha=0.3)
+    # tasa base por fold (contexto del cambio estacional) en el eje del recall
+    any_model = next(iter(cv.values()))
+    folds = np.arange(1, len(any_model["tasa_base"]) + 1)
+    axes[2].plot(folds, any_model["tasa_base"], "k--", lw=1.2, label="tasa base (real)")
+    axes[0].legend(fontsize=7)
+    axes[2].legend(fontsize=7)
+    fig.suptitle("Validación cruzada TEMPORAL (TimeSeriesSplit) — robustez de los modelos ante "
+                 "cambios estacionales", fontsize=11)
+    _guardar(fig, fig_dir, nombre)

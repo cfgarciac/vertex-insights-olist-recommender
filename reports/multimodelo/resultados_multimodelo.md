@@ -2,7 +2,7 @@
 
 ## Vertex Insights — Proyecto Final
 
-**Generado:** 2026-06-29 13:34  
+**Generado:** 2026-06-29 17:36  
 **Datos:** `data\processed\orders_features.csv` (96,470 órdenes; split temporal train/val/test)  
 **Disciplina:** mismas 16 features [t0], split temporal, `test` una sola vez, candado anti-fuga (R-12).
 
@@ -48,6 +48,8 @@ Recall por clase (mejor modelo):
 
 - **Binario derivado** (predecir días y alertar si > 0): PR-AUC **0.1428**, ROC-AUC **0.7563**, recall(umbral 0) 0.027. Vía alternativa al clasificador directo.
 
+> **Importante (interpretación):** la regresión se usa como **ranqueador de riesgo** (su salida se **calibra** a probabilidad de retraso), **NO** como estimador de los días exactos. Por la cola pesada y el techo de datos, *encoge* las predicciones hacia el promedio y **subestima la magnitud de los tardíos** (ver `06_regresion_pred_vs_real.png`: las órdenes muy tardías se predicen cerca de 0). Por eso se opera con el **umbral calibrado**, no con `días>0` (que daría recall ≈0.03).
+
 ## 4. Modelo de riesgo CONFIABLE (recomendado)
 
 Score de la regresión calibrado a P(tarde) (isotónica en `val`). Es el de mayor discriminación y mejor calibrado: **PR-AUC 0.1323**, **ROC-AUC 0.7421**, **Brier 0.0629** (vs Etapa 4: 0.124 / 0.703 / 0.186).
@@ -62,10 +64,24 @@ Artefacto: `artifacts/modelo_riesgo_p1.joblib` (regresor + calibrador isotónico
 
 > **Hallazgo (D-32):** añadir features [t0] derivadas (tasas point-in-time por ruta/categoría, estacionalidad) **no mejora** — degrada el test (ROC 0.696→0.591) por drift de régimen (R-14). El techo de P1 lo fijan los datos, no el modelado.
 
+## 5. Validación cruzada TEMPORAL (robustez ante estacionalidad)
+
+TimeSeriesSplit (5 folds) sobre la serie ordenada por fecha: cada fold entrena en el pasado y evalúa en el período siguiente (no es aleatoria; no sustituye al test). Comprueba si los modelos aguantan los cambios estacionales/atípicos de la serie (R-14).
+
+| Modelo | ROC-AUC medio | ± std | PR-AUC medio | ± std |
+|---|---|---|---|---|
+| logistic_regression | 0.691 | 0.046 | 0.170 | 0.085 |
+| random_forest | 0.670 | 0.034 | 0.167 | 0.086 |
+| hist_gradient_boosting | 0.671 | 0.023 | 0.164 | 0.074 |
+| xgboost | 0.675 | 0.026 | 0.173 | 0.085 |
+
+Desviación baja ⇒ modelo robusto entre períodos. Ver `figuras/09_cv_temporal.png` (la línea de tasa base muestra dónde están los períodos atípicos).
+
 ## Artefactos y figuras
 
 - Modelos: `artifacts/modelo_riesgo_p1.joblib` (recomendado), `modelo_binario.joblib`, `modelo_multiclase.joblib`, `modelo_regresion.joblib`.
-- Figuras: `reports/multimodelo/figuras/` (curvas PR/ROC, calibración, importancias, matriz de confusión, regresión pred-vs-real, error regional).
+- Figuras: `reports/multimodelo/figuras/` — curvas PR/ROC (01), calibración (02), región tasa-real vs recall **separadas** (03), importancias (04), confusión multiclase (05), regresión pred-vs-real (06), **recall por modelo** (07), **matrices de confusión binarias por modelo** (08), **CV temporal** (09).
+- **Punto de operación en cada figura (a propósito difieren):** la **03** usa el modelo recomendado en su punto de despliegue (recall≈0.70); la **07** compara los modelos en su umbral **F1** (recall natural, para rankearlos); la **08** usa el punto de **despliegue (recall≈0.80)**. Por eso el recall no es el mismo entre figuras: cada una responde a una pregunta distinta.
 - Métricas reproducibles: `reports/multimodelo/metrics_multimodelo.json`.
 
 *Mismas features [t0] y split temporal de la Etapa 3; sin fuga. Reproducible con `python -m src.models.train_multimodelo`.*
