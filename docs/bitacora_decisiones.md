@@ -1151,10 +1151,65 @@ Todos los targets son [POST] (solo etiquetan; nunca son features). El CSV de sal
 
 ---
 
+### D-31 — Reentrenamiento multi-modelo de P1 y selección del modelo de riesgo confiable (regresión calibrada)
+
+**Fecha:** 2026-06-29
+**Estado:** Aceptada
+**Responsable:** Machine Learning Engineer (Wessin, Nassim)
+
+**Contexto:**
+Tras integrar D-30 (PR #22 de Amaury: `Amaury → developer → Nassim`), se reentrena P1 sobre `data/processed/orders_features.csv` (96,470 órdenes; mismos 16 features [t0]; targets `entrega_tarde`, `clase_entrega`, `dias_vs_promesa`, `dias_entrega_real`) buscando mejores métricas y un detector de tardanza **confiable**. Se respeta la disciplina vigente: split temporal (D-25), ajuste en `val`, `test` una sola vez, candado anti-fuga (D-21/R-12; `tasa_vendedor` pesa ~5%).
+
+**Decisión:**
+Se añade el módulo `src/models/train_multimodelo.py`, que entrena varias familias (LogReg, RandomForest, HistGradientBoosting, XGBoost) en tres tareas (binaria, multiclase, regresión), con calibración y un experimento de re-ventaneo. Resultados en `test`:
+- **Binario directo**: en su techo (XGBoost PR-AUC 0.122 / ROC 0.696; HGB 0.124 / 0.690) — igual que la Etapa 4 (D-27): las features [t0] no cambiaron, así que la discriminación no sube.
+- **Modelo de riesgo elegido**: el **score de la regresión `dias_vs_promesa` calibrado a P(tarde)** (isotónica ajustada en `val`). Mejor discriminación que el binario directo y que la Etapa 4: **ROC-AUC 0.742** (vs 0.703), **PR-AUC 0.132** (vs 0.124), **Brier 0.063** (vs 0.186). A un punto de operación de **alto recall (~0.94 alertando 68% de las órdenes; umbral ajustable)** es consistente por **región** (recall 0.78–0.95) y en **cold-start** de vendedores nuevos (ROC 0.79) → confiable, sin puntos ciegos.
+- **Calibración isotónica** reduce el Brier de 0.186 a ~0.062 (probabilidades fiables como "riesgo").
+
+Artefactos: `artifacts/modelo_binario.joblib`, `modelo_multiclase.joblib`, `modelo_regresion.joblib`; reporte `reports/multimodelo/`. El modelo de Etapa 4 (`artifacts/modelo_p1.joblib`) se conserva intacto.
+
+**Alternativas consideradas:**
+- Clasificador binario directo como entregable — menor ROC y peor calibración que la vía de regresión.
+- XGBoost binario + calibración isotónica — recall alto y Brier 0.062, pero menor ROC (0.693); se mantiene como respaldo interpretable.
+
+**Consecuencias:**
+- Positivas: modelo calibrado, mejor discriminación que la Etapa 4 y recall alto y homogéneo; capacidades nuevas (multiclase, regresión).
+- Negativas o trade-offs: a alto recall la precisión es baja (~0.09, alerta 68%) por la tasa base de 6.6%; la elección **formal** del umbral con el PO y la calibración definitiva se mantienen para la Etapa 6 (HU-12, D-28).
+
+**Etapa asociada:** 4 (re-ejecución) / preparación de Etapa 6
+
+---
+
+### D-32 — No adoptar features [t0] derivadas adicionales: el techo de P1 es de datos (R-14), no de modelado
+
+**Fecha:** 2026-06-29
+**Estado:** Aceptada
+**Responsable:** Machine Learning Engineer (Wessin, Nassim)
+
+**Contexto:**
+D-30 dejó *diferido* añadir features específicas. Para intentar subir el techo del binario se probaron features [t0] nuevas derivadas de los datos existentes, **sin fuga** (verificado point-in-time): tasas históricas por **ruta** (`customer_state→seller_state`) y por **categoría**, estacionalidad (`es_temporada_alta`, `dias_a_navidad`), `holgura_por_km` y `es_region_remota`.
+
+**Decisión:**
+**No adoptarlas.** En `test` **degradan** el modelo (PR-AUC 0.122 → 0.093; ROC 0.696 → 0.591) pese a ser muy "importantes" en entrenamiento (`tasa_ruta` fue la feature top). Codifican el **régimen temporal del train** (tardanza ~9–13%) que **no se sostiene en `test`** (6.6%): es drift de régimen (R-14), no fuga. Conclusión: el techo predictivo de P1 está limitado por **los datos/régimen, no por el modelado**. Subirlo de verdad exige (a) **datos operativos [t0] nuevos** (no disponibles en Olist: carga del CD, transportista/ruta real, etc.) o (b) **tratar R-14** (re-ventaneo/segmentación temporal + recalibración), trabajo diferido a la **Etapa 6**.
+
+**Alternativas consideradas:**
+- Adoptarlas igualmente — descartado: entrega un modelo peor (sobreajuste al régimen antiguo).
+- Probar subconjuntos — no perseguido: la degradación de ROC (−0.10) es contundente y el alcance se acordó mínimo.
+
+**Consecuencias:**
+- Positivas: se evita degradar el modelo y se documenta con honestidad el límite real; refuerza R-14 como el riesgo central a resolver en la Etapa 6.
+- Negativas o trade-offs: el binario directo se mantiene en ~0.12 de PR-AUC hasta que haya datos nuevos o se trate el régimen.
+
+**Etapa asociada:** 4 (re-ejecución)
+
+---
+
 *Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
 planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
 D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
 reemplazadas); D-22 a D-26 al feature engineering de la Etapa 3; D-27 a D-29 al
 modelado de la Etapa 4; D-30 a la re-ejecución de la Etapa 3 (ampliación a
-múltiples familias de modelos). Nuevas decisiones se agregarán durante la
-ejecución del proyecto.*
+múltiples familias de modelos); D-31 y D-32 al reentrenamiento multi-modelo y a la
+mejora de confiabilidad post-Sprint 1 (modelo de regresión calibrado; las features
+[t0] derivadas no superan el techo por el régimen R-14). Nuevas decisiones se
+agregarán durante la ejecución del proyecto.*

@@ -28,14 +28,19 @@ import pandas as pd
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     average_precision_score,
+    balanced_accuracy_score,
     brier_score_loss,
+    classification_report,
     confusion_matrix,
     f1_score,
+    mean_absolute_error,
     precision_recall_curve,
     precision_score,
+    r2_score,
     recall_score,
     roc_auc_score,
     roc_curve,
+    root_mean_squared_error,
 )
 
 # --------------------------------------------------------------------------- #
@@ -271,3 +276,91 @@ def graficar_error_regional(tabla: pd.DataFrame, fig_dir: Path) -> None:
     ax.legend(["Tasa real de tardanza", "Recall del modelo"], fontsize=8)
     plt.xticks(rotation=0)
     _guardar(fig, fig_dir, "03_error_por_region.png")
+
+
+# --------------------------------------------------------------------------- #
+# Métricas y gráficas — CLASIFICACIÓN MULTICLASE (clase_entrega)
+# --------------------------------------------------------------------------- #
+def calcular_metricas_multiclase(
+    y_true: np.ndarray, y_pred: np.ndarray, labels: list[str]
+) -> dict:
+    """Métricas para `clase_entrega` (multiclase desbalanceada).
+
+    El foco es macro-F1 y balanced-accuracy (no accuracy), porque la clase
+    mayoritaria (`muy_temprano`) domina y la accuracy sería engañosa, igual que
+    en el binario (D-19). Devuelve también el detalle por clase.
+    """
+    rep = classification_report(
+        y_true, y_pred, labels=labels, output_dict=True, zero_division=0
+    )
+    return {
+        "accuracy": float(rep["accuracy"]),
+        "balanced_accuracy": float(balanced_accuracy_score(y_true, y_pred)),
+        "macro_f1": float(rep["macro avg"]["f1-score"]),
+        "weighted_f1": float(rep["weighted avg"]["f1-score"]),
+        "por_clase": {
+            str(c): {
+                "precision": float(rep[str(c)]["precision"]),
+                "recall": float(rep[str(c)]["recall"]),
+                "f1": float(rep[str(c)]["f1-score"]),
+                "support": int(rep[str(c)]["support"]),
+            }
+            for c in labels
+        },
+    }
+
+
+def graficar_matriz_confusion(
+    y_true: np.ndarray, y_pred: np.ndarray, labels: list[str], fig_dir: Path, nombre: str
+) -> None:
+    """Matriz de confusión normalizada por fila (recall por clase)."""
+    cm = confusion_matrix(y_true, y_pred, labels=labels).astype(float)
+    cm_norm = cm / cm.sum(axis=1, keepdims=True).clip(min=1e-9)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(cm_norm, cmap="Blues", vmin=0, vmax=1)
+    ax.set_xticks(range(len(labels)), labels, rotation=30, ha="right")
+    ax.set_yticks(range(len(labels)), labels)
+    for i in range(len(labels)):
+        for j in range(len(labels)):
+            ax.text(
+                j, i, f"{cm_norm[i, j]:.2f}", ha="center", va="center",
+                color="white" if cm_norm[i, j] > 0.5 else "black", fontsize=9,
+            )
+    ax.set(xlabel="Predicho", ylabel="Real", title="Matriz de confusión (normalizada por fila, test)")
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    _guardar(fig, fig_dir, nombre)
+
+
+# --------------------------------------------------------------------------- #
+# Métricas y gráficas — REGRESIÓN (dias_vs_promesa / dias_entrega_real)
+# --------------------------------------------------------------------------- #
+def calcular_metricas_regresion(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
+    """MAE, RMSE y R² para los targets continuos."""
+    return {
+        "mae": float(mean_absolute_error(y_true, y_pred)),
+        "rmse": float(root_mean_squared_error(y_true, y_pred)),
+        "r2": float(r2_score(y_true, y_pred)),
+    }
+
+
+def graficar_pred_vs_real(
+    y_true: np.ndarray, y_pred: np.ndarray, titulo: str, fig_dir: Path, nombre: str
+) -> None:
+    """Dispersión predicho vs real (muestra) con la recta identidad."""
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    n = len(y_true)
+    idx = np.arange(n)
+    if n > 5000:  # submuestra determinista para que el PNG no pese de más
+        rng = np.random.RandomState(42)
+        idx = rng.choice(n, 5000, replace=False)
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.scatter(y_true[idx], y_pred[idx], s=6, alpha=0.25, color="#2b6cb0")
+    lo = float(min(y_true[idx].min(), y_pred[idx].min()))
+    hi = float(max(y_true[idx].max(), y_pred[idx].max()))
+    ax.plot([lo, hi], [lo, hi], ls="--", c="gray", lw=1, label="identidad")
+    ax.axhline(0, c="red", lw=0.8, ls=":")
+    ax.axvline(0, c="red", lw=0.8, ls=":")
+    ax.set(xlabel="Real (días)", ylabel="Predicho (días)", title=titulo)
+    ax.legend(fontsize=8)
+    _guardar(fig, fig_dir, nombre)
