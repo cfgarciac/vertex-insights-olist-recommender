@@ -1118,9 +1118,22 @@ Conservar el **periodo completo** en esta etapa (sin recortar la cola), **report
 
 ---
 
+### D-30 — Framing de P1: clasificación (Fase 1, entregada) + regresión de duración (Fase 2)
+**Fecha:** 2026-06-28 · **Estado:** Aceptada · **Responsable:** Equipo + mentoría DVA
+**Contexto:** D-19/D-20 fijaron clasificación sin pesarla vs regresión por valor; la
+regresión quedó pendiente (decisiones_fe.md). El DVA aporta evidencia para decidir.
+**Decisión:** Fase 1 = clasificación `entrega_tarde` (V1.3.0, conservada). Fase 2 =
+regresión sobre `dias_entrega_real` (target C) para afinar la promesa. Target B descartado.
+**Alternativas:** seguir solo con A (techo de valor; palanca de ops débil); regresión sobre
+B (sesgada). **Consecuencias:** reusa el cimiento del repo; exige nivel de servicio (Charter);
+el valor de afinar la promesa no es medible con este dataset (limitación declarada).
+**Etapa asociada:** transversal (cierre de reconciliación).
+
+---
+
 *Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
 planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
 D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
 reemplazadas); D-22 a D-26 al feature engineering de la Etapa 3; D-27 a D-29 al
-modelado de la Etapa 4. Nuevas decisiones se agregarán durante la ejecución del
-proyecto.*
+modelado de la Etapa 4; D-30 a la reconciliación DVA↔repo. Nuevas decisiones se
+agregarán durante la ejecución del proyecto.*
