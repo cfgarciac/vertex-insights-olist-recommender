@@ -7,8 +7,8 @@
 ## 0. Estado del documento
 
 - **Estado:** BORRADOR (captura cruda, append-only — *no* es prosa de venta todavía; eso se compone al final).
-- **Alcance redactado hasta ahora:** **Niveles 0, 1, 2 del embudo + Punto de Decisión + base del Nivel 3.** Nivel 0 (descubrimiento), Nivel 1 (filtro + fichas), Nivel 2 (§7.1), Punto de Decisión (§7.2) y la **base del DVA de P1** (§7.3.0: universo, targets, anti-leakage). Capturado en caliente al cierre de cada fase.
-- **Secciones pendientes (stubs):** §3 backfill (DVA item-to-item, de chat previo), §7.3.1–7.3.3 (EDA descriptivo, feature de vendedor y veredicto final del Nivel 3).
+- **Alcance redactado hasta ahora:** **Niveles 0, 1, 2 del embudo + Punto de Decisión + Nivel 3 de P1.** Nivel 0 (descubrimiento), Nivel 1 (filtro + fichas), Nivel 2 (§7.1), Punto de Decisión (§7.2) y el **DVA de P1** (§7.3: universo, targets, anti-leakage, señal descriptiva, feature de vendedor y veredicto final). Capturado en caliente al cierre de cada fase.
+- **Secciones pendientes (stubs):** §3 backfill (DVA item-to-item, de chat previo). El veredicto de viabilidad de P1 ya queda cerrado en §7.3.3.
 - **Regla de mantenimiento:** cada nivel del embudo, al cerrarse, vuelca aquí su razonamiento, conclusiones y decisiones-con-su-porqué. Solo se **añade**; no se reescribe lo anterior. La composición persuasiva (informe + deck) ocurre una sola vez, al final.
 
 ---
@@ -259,9 +259,9 @@ Tablero tras el filtro:
 
 ## 7. Niveles 2–3 + veredicto final
 
-> **Estado:** §7.1 (Nivel 2 — bloque de reviews/drivers) REDACTADO. §7.2 (Nivel 3) y
-> §7.3 (veredicto final) siguen como **STUB**: se completan tras el Punto de Decisión
-> y la ejecución del Nivel 3. Estilo: Borrador, append-only, captura en caliente.
+> **Estado:** §7.1 (Nivel 2 — bloque de reviews/drivers) REDACTADO; §7.2 (Punto de
+> Decisión) REDACTADO; §7.3 (Nivel 3 de P1 + veredicto final) REDACTADO. Estilo:
+> Borrador, append-only, captura en caliente.
 
 ---
 
@@ -673,9 +673,9 @@ evitar leakage. De ahí el stack end-to-end.
 ### 7.3 Veredicto de viabilidad final + decisiones que cierran el Project Charter
 
 > **BORRADOR en construcción (append-only).** Este es el entregable narrativo del Nivel 3.
-> Se llena por capas a medida que cierran las celdas: §7.3.0 (base) está cerrado; §7.3.1–7.3.3
-> se añaden tras el EDA (D1) y la feature de vendedor (D2). El veredicto final NO se escribe
-> hasta tener esas dos piezas — escribirlo antes sería prejuzgar el DVA.
+> Integra la base del DVA (§7.3.0), la señal descriptiva que justifica las features
+> (§7.3.1), la auditoría de la feature de vendedor (§7.3.2) y el veredicto final de
+> viabilidad (§7.3.3).
 
 #### 7.3.0 Base del DVA — universo, targets y blindaje anti-leakage (celdas D0-pre, D0)
 
@@ -742,19 +742,101 @@ envío (peso, volumen, flete) · G3 categoría · G4 valor/pago · G5 temporales
 
 #### 7.3.1 Señal descriptiva del EDA enfocado (celdas D1a/D1b/D1c)
 
-> **STUB** — se llena tras el EDA. Diferencias de grupo (tarde vs puntual) por geografía,
-> tiempo, atributos físicos, categoría y valor. Es señal *descriptiva*, no un modelo entrenado.
+El EDA enfocado de P1 cambia de rol tras la reconciliación con el repo. Ya no funciona
+como una exploración previa al modelado, porque el equipo ya cerró la Etapa 4 con un
+clasificador entrenado. Su función ahora es más precisa: documentar si la señal que usa
+el modelo es legítima, si las features seleccionadas tienen sentido de negocio y si la
+Fase 1 se sostiene como una solución defendible.
+
+La primera prueba es temporal. Las 16 features del modelo pertenecen al momento M0, es
+decir, al momento de compra o aprobación de la orden. No dependen de la fecha real de
+entrega, de reseñas, ni de columnas calculadas después de que el cliente recibe el
+producto. Esto permite que el modelo sea conceptualmente desplegable: Olist podría
+calcular esas variables antes de saber si la orden terminó llegando tarde.
+
+La segunda prueba es de pertinencia. Las features seleccionadas no son solo "permitidas";
+también describen los mecanismos reales del problema. La geografía del comprador y del
+vendedor captura diferencias regionales; `mismo_estado` y `dist_haversine_km` aproximan
+dificultad logística; `dias_prometidos` representa el colchón de la promesa;
+`tasa_vendedor` resume desempeño histórico del seller; peso, volumen, flete, precio,
+número de ítems y categoría describen la complejidad física y comercial del pedido; mes
+y día de compra capturan estacionalidad.
+
+En conjunto, las features son coherentes con Olist como marketplace. La entrega no
+depende solo de "kilómetros": depende de la red de vendedores, la región del comprador,
+el tipo de producto, la holgura de la promesa y el comportamiento histórico del seller.
+Por eso las 16 features pueden defenderse como un subconjunto correcto y suficiente para
+Fase 1. No son necesariamente el conjunto final del proyecto: si la Fase 2 avanza hacia
+regresión sobre `dias_entrega_real`, la pregunta de features deberá reabrirse.
 
 #### 7.3.2 Feature de vendedor sin leakage temporal (celda D2)
 
-> **STUB** — se llena tras D2. ¿Hay suficiente historia previa por vendedor para una tasa
-> de despacho tardío estable y *point-in-time*? ¿Cuántos vendedores califican respetando el tiempo?
+La feature más delicada del modelo es `tasa_vendedor`, porque resume desempeño histórico
+del seller. Si se calculara usando la propia orden o pedidos futuros, introduciría
+*data leakage*: el modelo estaría usando información que no existiría en producción.
+
+El repo la implementa como una tasa *point-in-time*: para cada orden, solo usa órdenes
+anteriores del mismo vendedor. Además, exige un mínimo de 5 órdenes previas; cuando no
+hay suficiente historia, usa la tasa global del train y activa `sin_historial_vendedor`.
+Esto evita que el modelo descarte vendedores nuevos y, al mismo tiempo, impide que la
+orden se prediga con información de sí misma.
+
+La auditoría de la Etapa 4 refuerza que la señal no parece contaminada. Las métricas
+están en un rango realista, lejos de valores cercanos a 1.0 que sugerirían fuga. Además,
+`tasa_vendedor` pesa cerca del 6% de la importancia total: aporta señal, pero no domina
+artificialmente el modelo.
+
+Desde negocio, esta feature es especialmente valiosa porque traduce el comportamiento
+del seller en una señal accionable para Olist. La plataforma no controla toda la logística
+como un operador único, pero sí puede monitorear vendedores, ajustar promesas según
+historial y diseñar políticas de curaduría o prevención.
 
 #### 7.3.3 Veredicto final de viabilidad de P1
 
-> **STUB** — se escribe al cierre del Nivel 3: sí / no / sí-con-reservas, con las features
-> válidas, el framing de target recomendado, el tratamiento del desbalance y las limitaciones.
-> Cierra el Report y desbloquea el Project Charter.
+**Veredicto: P1 es viable con reservas.**
+
+P1 es viable porque los datos permiten construir un target limpio (`entrega_tarde`),
+seleccionar features disponibles en el momento de la compra y entrenar un modelo que
+supera el azar sin depender de información futura. La Fase 1 ya está implementada en el
+repo como clasificación binaria de entrega tardía: predice si una orden romperá la
+promesa actual de Olist.
+
+La señal es honesta en dos sentidos. Primero, no hay *data leakage*: las variables
+post-entrega, las reseñas y la fecha real no entran como features. Segundo, las variables
+seleccionadas representan factores reales del negocio: región, vendedor, promesa,
+distancia, temporalidad y características del pedido. Por eso la Fase 1 no es solo un
+ejercicio técnico; es un primer sistema defendible de priorización de riesgo logístico.
+
+Las métricas son modestas, pero útiles. En test, XGBoost alcanza ROC-AUC 0.703 y PR-AUC
+0.124 frente a una tasa base de 0.066. En un problema desbalanceado, donde las entregas
+tardías son minoría, PR-AUC es más informativa que la accuracy. El modelo no predice
+perfectamente, pero sí ordena el riesgo mejor que el azar. En el punto de alta cobertura,
+captura cerca del 63% de las entregas tardías alertando alrededor del 35% de las órdenes.
+Esto sirve como herramienta de riesgo, no como automatización final sin supervisión.
+
+La reserva principal es estratégica. `entrega_tarde` mide incumplimiento contra la promesa
+actual, pero esa promesa tiene un colchón amplio: la mediana real de entrega ronda 10 días
+y la prometida ronda 23. Entonces la clasificación ayuda a proteger una promesa
+conservadora, pero no necesariamente optimiza la fecha que ve el cliente.
+
+Por eso el framing final queda en dos fases. La **Fase 1**, ya entregada, es clasificación
+de `entrega_tarde`: útil para anticipar riesgo de incumplimiento. La **Fase 2** recomendada
+es una regresión sobre `dias_entrega_real`: estimar cuántos días tardará realmente la
+entrega. Esa segunda fase porta más valor de negocio porque permitiría construir una
+promesa más honesta, competitiva y ajustada por región, vendedor y características de la
+orden.
+
+Las limitaciones quedan declaradas. El dataset no mide conversión, abandono de carrito,
+recompra, compensaciones ni costo real de incumplir o sobre-prometer. Las órdenes
+canceladas/no entregadas quedan fuera del target principal. Además, existe un cambio de
+régimen temporal entre train, val y test, por lo que la calibración y los umbrales deben
+revisarse antes de producción.
+
+En síntesis: P1 es viable con reservas. Viable porque tiene target limpio, features
+honestas, señal predictiva y valor operativo. Con reservas porque las métricas son
+moderadas, la promesa actual está inflada, el dataset no mide todos los costos de negocio
+y la solución completa exige una Fase 2 de duración real más una política de nivel de
+servicio.
 
 ---
 
@@ -770,29 +852,6 @@ envío (peso, volumen, flete) · G3 categoría · G4 valor/pago · G5 temporales
 
 ---
 
-*Fin del contenido redactado (Nivel 0). Las secciones §3 (backfill), §6 y §7 se completan al cerrarse sus respectivos chats, en el mismo estilo Borrador y append-only.*
-
----
-
-#### 7.3.0-bis Reconciliación con el modelo ya construido + framing marcado
-
-La narrativa DVA y el repositorio del equipo avanzaron en paralelo y aquí se reconcilian.
-El repo cerró la Etapa 4 (clasificador `entrega_tarde`, XGBoost V1.3.0; ROC-AUC 0.703,
-PR-AUC 0.124 en test). El EDA del Nivel 3 que este Report planeaba (D1a–D2) ya estaba
-cubierto por el EDA del equipo (02/03_EDA): por eso esas piezas pasan de "explorar antes
-de modelar" a "documentar la señal descriptiva que justifica las 16 features".
-
-**Framing — decidido, no asumido.** El repo eligió clasificación en D-19/D-20, pero
-ninguna decisión la pesó contra la regresión *por valor de negocio*; la regresión quedó
-parkeada (D-20) y pendiente (decisiones_fe.md). Con la evidencia en mano se marca:
-**clasificación = Fase 1 entregada** (riesgo de incumplir la promesa actual) y **regresión
-sobre `dias_entrega_real` (target C) = Fase 2, portadora del valor** (afinar la promesa de
-cara al cliente). Razón: la palanca de §7.1.6 es continua; C contiene a A (de la duración
-se deriva el incumplimiento contra cualquier promesa, no al revés); y A predice contra una
-promesa que Olist infló ~13 días. Se descarta el target B (`dias_vs_promesa`) por sesgo del
-colchón. No es redirección: la Fase 2 reusa features [t0], pipeline y split del repo.
-
-**Límites declarados:** el dataset no permite medir el costo de sobre-prometer (sin
-clickstream); afinar la promesa sube el incumplimiento por construcción y exige una
-política de nivel de servicio (percentil) que decide el negocio. El veredicto final de
-viabilidad (§7.3.3) y esa política se cierran en el Project Charter.
+*Fin del contenido redactado. Queda pendiente el backfill de §3 (DVA item-to-item,
+de chat previo); §6 y §7 ya están redactadas como captura de trabajo del embudo y
+cierre de viabilidad de P1.*
