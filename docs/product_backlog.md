@@ -291,7 +291,7 @@ entrenamiento e inferencia, sin fuga de datos.
   `ColumnTransformer` ajustado solo en train; **pipeline serializado** en
   `artifacts/pipeline_p1.joblib` (D-26).
 - **Split temporal 70/15/15** por fecha de compra (D-25).
-- Entregables: `src/features/build_dataset.py`, `vertex_files/orders_p1_features.csv`,
+- Entregables: `src/features/build_dataset.py`, `vertex_files/orders_features.csv`,
   `notebooks/03_EDA_VERTEX.ipynb`, `docs/decisiones_fe.md`.
 
 ---
