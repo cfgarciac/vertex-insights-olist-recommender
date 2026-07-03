@@ -1131,9 +1131,131 @@ el valor de afinar la promesa no es medible con este dataset (limitación declar
 
 ---
 
+### D-31 - Cierre del MVP de Fase 2
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Product Owner + Data Scientist
+
+**Contexto:**
+La Fase 2 ya completo ETL experimental, EDA, features rolling point-in-time,
+modelado de regresion, backtesting P80/P90/P95 y experimento de clustering. El
+repositorio mantiene Fase 1 aislada y no se guardaron modelos productivos de Fase
+2.
+
+**Decision:**
+Se cierra formalmente el MVP offline de Fase 2 como regresion supervisada tabular
+sobre `dias_entrega_real`, con evaluacion temporal y documentacion de alcance,
+limitaciones y riesgos.
+
+**Alternativas consideradas:**
+- Extender el MVP hacia API/dashboard - descartado por estar fuera del alcance de
+  cierre documental.
+- Incorporar mas experimentos antes del cierre - descartado para evitar alcance
+  abierto sin mejora material.
+
+**Consecuencias:**
+- Positivas: Fase 2 queda trazable, defendible y separada de Fase 1.
+- Negativas o trade-offs: la solucion queda como MVP offline, no como producto en
+  produccion.
+
+**Etapa asociada:** Fase 2
+
+---
+
+### D-32 - Seleccion del modelo Random Forest para Fase 2
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Data Scientist
+
+**Contexto:**
+Chat E comparo baselines, Ridge, Random Forest y XGBoost usando split temporal. La
+seleccion se hizo por menor MAE en validacion; test se reservo para evaluacion
+final del candidato elegido.
+
+**Decision:**
+Se selecciona `random_forest` con feature set `M0_mas_seller_rolling` como modelo
+MVP de Fase 2. Metricas finales: MAE val 4.553 dias, MAE test 3.989 dias y bias
+test +2.297 dias.
+
+**Alternativas consideradas:**
+- Medianas por ruta/estado - utiles como baseline, pero no como mejor candidato.
+- Ridge - descartado por mayor MAE.
+- XGBoost Regressor - competitivo, pero no supero al candidato elegido en val.
+
+**Consecuencias:**
+- Positivas: modelo tabular robusto, supera baselines y conserva disciplina
+  anti-leakage.
+- Negativas o trade-offs: menor interpretabilidad directa que un modelo lineal y
+  tendencia conservadora en test.
+
+**Etapa asociada:** Fase 2
+
+---
+
+### D-33 - Politica P90 como candidata preliminar de promesa
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Product Owner + Data Scientist
+
+**Contexto:**
+El backtesting simulo la promesa actual de Olist y las politicas P80, P90 y P95
+usando margenes calculados en validacion y evaluacion final en test.
+
+**Decision:**
+Se deja P90 como politica candidata preliminar para discusion de negocio. En test
+logra 96.46% de cumplimiento, colchon promedio 9.07 dias y promesa promedio 17.44
+dias, frente a 94.32%, 10.75 dias y 19.12 dias de la promesa actual Olist.
+
+**Alternativas consideradas:**
+- P80 - mas competitiva, pero con mayor incumplimiento simulado.
+- P95 - mas confiable, pero demasiado conservadora y con promesa promedio mas
+  alta.
+
+**Consecuencias:**
+- Positivas: ofrece un balance defendible entre confianza y competitividad.
+- Negativas o trade-offs: requiere validacion con costos reales y apetito de
+  riesgo antes de produccion.
+
+**Etapa asociada:** Fase 2
+
+---
+
+### D-34 - Clustering no incorporado al MVP de Fase 2
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Data Scientist + Machine Learning Engineer
+
+**Contexto:**
+Chat G probo clustering de rutas, sellers y variables geograficas como experimento
+avanzado. La mejor variante fue `ruta_k8`, con mejora aproximada de -0.0006 dias
+en MAE val y -0.0028 dias en MAE test. En P90, el cumplimiento test baja
+levemente de 96.455% a 96.434%.
+
+**Decision:**
+No incorporar clustering al MVP. Queda documentado como linea experimental futura.
+
+**Alternativas consideradas:**
+- Incorporar `ruta_k8` - descartado por mejora insignificante frente al costo
+  productivo.
+- Probar mas valores de k o mas variantes - diferido fuera del MVP.
+
+**Consecuencias:**
+- Positivas: evita mantener un segundo componente sin valor material.
+- Negativas o trade-offs: se abandona por ahora una posible linea avanzada de
+  agrupamiento logistico.
+
+**Etapa asociada:** Fase 2
+
+---
+
 *Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
 planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
 D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
 reemplazadas); D-22 a D-26 al feature engineering de la Etapa 3; D-27 a D-29 al
-modelado de la Etapa 4; D-30 a la reconciliación DVA↔repo. Nuevas decisiones se
+modelado de la Etapa 4; D-30 a la reconciliación DVA↔repo; D-31 a D-34 al
+cierre del MVP de Fase 2. Nuevas decisiones se
 agregarán durante la ejecución del proyecto.*

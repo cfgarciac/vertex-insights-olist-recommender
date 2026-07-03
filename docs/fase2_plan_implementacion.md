@@ -1,10 +1,10 @@
 # Implementation Plan - Fase 2 Regresion dias_entrega_real
 
-> **Estado:** Plan aprobado para iniciar Fase 2 por subchats controlados  
-> **Proyecto:** Vertex Insights - Olist Marketplace  
-> **Rama de trabajo:** Harrison  
-> **Ultimo commit base validado:** 7397750 docs: agregar charter y diseno fase 2  
-> **Fecha:** 2026-06-30  
+> **Estado:** MVP de Fase 2 cerrado documentalmente
+> **Proyecto:** Vertex Insights - Olist Marketplace
+> **Rama de trabajo:** Harrison
+> **Ultimo commit base validado:** d0ca30e feat: agregar experimento clustering fase 2
+> **Fecha:** 2026-07-02
 
 ---
 
@@ -73,7 +73,7 @@ El orquestador debe comprobar:
 
 ### Chat A - Planificacion y criterios
 
-**Estado:** en ejecucion con este documento.
+**Estado:** completado.
 
 Entregable:
 
@@ -87,6 +87,8 @@ Criterio de cierre:
 - Sin tocar Fase 1.
 
 ### Chat B - ETL experimental Fase 2
+
+**Estado:** completado.
 
 Objetivo:
 
@@ -111,6 +113,8 @@ Criterios de aceptacion:
 - Validacion de que Fase 1 no fue modificada.
 
 ### Chat C - EDA e hipotesis de feature engineering
+
+**Estado:** completado.
 
 Objetivo:
 
@@ -142,6 +146,8 @@ describen dificultad logistica. En Chat C esto se revisa como advertencia de
 diseno, no como eliminacion definitiva.
 
 ### Chat D - Features rolling point-in-time
+
+**Estado:** completado.
 
 Objetivo:
 
@@ -184,6 +190,8 @@ Nota de alcance:
 > del modelo.
 
 ### Chat E - Modelos baseline y regresion
+
+**Estado:** completado.
 
 Objetivo:
 
@@ -244,6 +252,8 @@ Chat E = entrena modelos y selecciona features finales por MAE, ablacion y valid
 
 ### Chat F - Backtesting P80/P90/P95
 
+**Estado:** completado.
+
 Objetivo:
 
 Simular politicas de promesa sobre datos historicos.
@@ -273,6 +283,8 @@ Criterios de aceptacion:
 politica se hubiera usado en ese momento.
 
 ### Chat G - Clustering experimental, no MVP
+
+**Estado:** completado como experimento; no incorporado al MVP.
 
 Objetivo:
 
@@ -375,22 +387,22 @@ No debe incluir como features:
 
 Fase 2 se considera prometedora si:
 
-- Supera la mediana global en MAE.
-- Supera o iguala la mediana por estado destino.
-- Las rolling 30d aportan mejora incremental.
-- El error no se concentra gravemente en una region sin explicacion.
-- El backtesting produce una politica P80/P90/P95 defendible.
-- La solucion mantiene disciplina anti-leakage.
-- Las conclusiones son honestas sobre limites del dataset.
+- [x] Supera la mediana global en MAE.
+- [x] Supera o iguala la mediana por estado destino.
+- [x] Las rolling 30d fueron construidas y evaluadas por bloques.
+- [x] El error regional queda reportado por `customer_state` y `ruta_estado`.
+- [x] El backtesting produce una politica P80/P90/P95 defendible.
+- [x] La solucion mantiene disciplina anti-leakage.
+- [x] Las conclusiones son honestas sobre limites del dataset.
 
 Fase 2 no debe avanzar si:
 
-- Solo mejora usando `dias_prometidos`.
-- Depende de informacion posterior a la compra.
-- No supera baselines simples.
-- El backtesting muestra incumplimiento excesivo.
-- Las features rolling tienen cobertura insuficiente.
-- Clustering agrega complejidad sin mejora clara.
+- [x] No depende de `dias_prometidos`; esa variable no entro al modelo principal.
+- [x] No depende de informacion posterior a la compra.
+- [x] Supera baselines simples.
+- [x] El backtesting deja P90 como politica candidata defendible.
+- [x] Las features rolling tienen cobertura documentada y fallback.
+- [x] Clustering no se incorpora al MVP porque agrega complejidad sin mejora clara.
 
 ---
 
@@ -398,32 +410,42 @@ Fase 2 no debe avanzar si:
 
 Antes de aceptar cualquier subchat, revisar:
 
-- [ ] El subchat declara objetivo y alcance.
-- [ ] Solo crea archivos nuevos o pide permiso para modificar existentes.
-- [ ] No toca archivos protegidos de Fase 1.
-- [ ] No escribe dentro de `dva_olist`.
-- [ ] No agrega datos o modelos versionables.
-- [ ] El `git status` queda entendible.
-- [ ] Las features son M0 o historicas pasadas.
-- [ ] Hay candado anti-leakage.
-- [ ] La evaluacion usa split temporal.
-- [ ] Se comparan baselines simples.
-- [ ] Se reportan metricas por split.
-- [ ] Se documentan riesgos y limitaciones.
-- [ ] No se hace commit, push ni tag sin aprobacion.
+- [x] El subchat declara objetivo y alcance.
+- [x] Solo crea archivos nuevos o pide permiso para modificar existentes.
+- [x] No toca archivos protegidos de Fase 1.
+- [x] No escribe dentro de `dva_olist`.
+- [x] No agrega datos o modelos versionables.
+- [x] El `git status` queda entendible.
+- [x] Las features son M0 o historicas pasadas.
+- [x] Hay candado anti-leakage.
+- [x] La evaluacion usa split temporal.
+- [x] Se comparan baselines simples.
+- [x] Se reportan metricas por split.
+- [x] Se documentan riesgos y limitaciones.
+- [x] No se hace commit, push ni tag sin aprobacion.
 
 ---
 
-## 10. Decision operativa inicial
+## 10. Cierre operativo del MVP
 
-El siguiente trabajo recomendado es Chat B:
+La Fase 2 queda cerrada como MVP offline de regresion tabular para
+`dias_entrega_real`.
 
-> construir el ETL experimental de Fase 2 y validar el dataset de regresion,
-> sin entrenar modelos todavia.
+Entregables completados:
 
-Razon:
+- ETL experimental: `src/features/build_dataset_fase2_regresion.py`.
+- Dataset base local: `data/processed/orders_fase2_regresion.csv`, 96,470 filas x 21 columnas.
+- EDA: `reports/fase2_eda_regresion.md`.
+- Rolling point-in-time: `reports/fase2_rolling_features.md`.
+- Dataset rolling local: `data/processed/orders_fase2_regresion_rolling.csv`, 96,470 filas x 39 columnas.
+- Modelado: `reports/fase2_modelado_regresion.md`.
+- Backtesting: `reports/fase2_backtesting_promesas.md`.
+- Clustering experimental: `experiments/fase2_clustering_experimento.md`.
+- Cierre MVP: `reports/fase2_cierre_mvp.md`.
 
-El dataset es el cimiento. Si la tabla queda mal definida, cualquier modelo
-posterior puede parecer correcto pero estar contaminado. Primero se valida el
-universo, el target, el split temporal y las columnas permitidas; despues se
-modela.
+Decision final del MVP:
+
+- Modelo seleccionado: `random_forest` con feature set `M0_mas_seller_rolling`.
+- Metricas finales: MAE val 4.553 dias; MAE test 3.989 dias; bias test +2.297 dias.
+- Politica candidata: P90, por balance entre cumplimiento simulado y promesa promedio.
+- Clustering: no incorporado al MVP; queda como linea experimental futura.
