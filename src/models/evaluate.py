@@ -275,7 +275,7 @@ def graficar_error_regional(tabla: pd.DataFrame, fig_dir: Path) -> None:
     ax.set(title="Tardanza real vs recall del modelo por región (test)", ylabel="Proporción")
     ax.legend(["Tasa real de tardanza", "Recall del modelo"], fontsize=8)
     plt.xticks(rotation=0)
-    _guardar(fig, fig_dir, "03_error_por_region.png")
+    _guardar(fig, fig_dir, "03_region_separado.png")
 
 
 # --------------------------------------------------------------------------- #

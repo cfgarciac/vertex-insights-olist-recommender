@@ -1,179 +1,87 @@
-# Resultados del modelado — P1 (entrega tardía) · Etapa 4
+# Reentrenamiento multi-modelo de P1 — mejora post-Sprint 1
 
 ## Vertex Insights — Proyecto Final
 
-**Fecha:** 2026-06-21
-**Fase CRISP-DM:** Modeling
-**Responsable de la etapa:** Machine Learning Engineer (Wessin, Nassim)
-**Insumo:** tabla analítica y preprocesador de la Etapa 3 (`docs/decisiones_fe.md`)
-**Artefactos:** `artifacts/modelo_p1.joblib`, `reports/etapa4_metrics.json`,
-`reports/figures_modelado_etapa4/`, `notebooks/04_modelado_VERTEX.ipynb`
+**Generado:** 2026-07-02 22:27  
+**Datos:** `data\processed\orders_features.csv` (96,470 órdenes; split temporal train/val/test)  
+**Disciplina:** mismas 16 features [t0], split temporal, `test` una sola vez, candado anti-fuga (R-12).
 
----
+## 1. Clasificación binaria (`entrega_tarde`)
 
-## 1. Objetivo y enfoque
+Referencia Etapa 4 (`xgboost (clasificador viejo)`): PR-AUC(test) **0.1240**, ROC-AUC **0.7030**, recall **0.346**, Brier **0.1860**.
 
-Predecir **en el momento de la compra (t0)** si una orden de Olist llegará
-**tarde** respecto a la fecha prometida (`entrega_tarde`). Es una **clasificación
-binaria desbalanceada** (tasa base global 8.11%). La etapa **no rehace features ni
-el split** (cerrados en la Etapa 3): añade el estimador al preprocesador y mide.
-
-Disciplina mantenida (heredada de la Etapa 3):
-- Solo features **[t0]** (11 numéricas + 5 categóricas); columnas [POST]
-  (`dias_vs_promesa`, entrega real, reseñas) **excluidas** por un candado de código
-  (`assert_sin_features_post`).
-- **Split temporal** 70/15/15 por fecha de compra (D-25); el preprocesador se
-  ajusta **solo en train**; la selección mira `val`; `test` se reporta **una vez**.
-- **Nada de validación cruzada aleatoria** (reintroduciría fuga temporal).
-
----
-
-## 2. Datos y un hallazgo de coherencia importante
-
-| Split | Órdenes | Tasa `entrega_tarde` |
-|---|---|---|
-| train (pasado) | 67,529 | **9.03%** |
-| val | 14,470 | **5.34%** |
-| test (futuro) | 14,471 | **6.61%** |
-| total | 96,470 | 8.11% |
-
-> **Cambio de régimen temporal (R-14).** La tardanza **cae con el tiempo**: el
-> periodo de entrenamiento (más antiguo) es más tardío que el de val/test. Esto no
-> es un error: refleja que el desempeño logístico de Olist mejora hacia el final
-> del dataset. Consecuencia práctica: las métricas en `val`/`test` son
-> sistemáticamente más bajas que en `train` y la **calibración** queda desplazada
-> (un modelo entrenado en un régimen del 9% sobre-estima el riesgo en uno del 6%).
-> Se conserva el periodo completo (D-29) y se reporta honestamente; el re-ventaneo
-> o la segmentación se evalúan en la Etapa 6.
-
----
-
-## 3. Modelos y métricas
-
-Se midieron dos **baselines** (piso) y dos **familias** de clasificadores; cada
-familia exploró una rejilla pequeña y se eligió su mejor candidato por **PR-AUC en
-`val`** (`xgb_d4_l2` ganó a `xgb_d6_l5`: 0.166 vs 0.152).
-
-**Métricas en TEST (umbral F1 fijado en `val`):**
-
-| Modelo | PR-AUC | ROC-AUC | F1 | Precision | Recall | Brier |
+| Modelo | PR-AUC(test) | ROC-AUC(test) | F1 | Precision | Recall | Brier |
 |---|---|---|---|---|---|---|
-| Baseline clase mayoritaria | 0.066 | 0.500 | — | — | — | 0.062 |
-| Baseline regla (dist+estado) | 0.052 | 0.340 | 0.071 | 0.052 | 0.111 | 0.349 |
-| Regresión Logística | 0.111 | 0.665 | 0.144 | 0.104 | 0.234 | 0.296 |
-| **XGBoost (`xgb_d4_l2`) — elegido** | **0.124** | **0.703** | 0.191 | 0.132 | 0.346 | 0.186 |
+| baseline_mayoritaria | 0.0661 | 0.5000 | 0.124 | 0.066 | 1.000 | 0.0623 |
+| logistic_regression | 0.1105 | 0.6650 | 0.144 | 0.104 | 0.234 | 0.2963 |
+| random_forest | 0.0922 | 0.6480 | 0.117 | 0.082 | 0.207 | 0.1464 |
+| hist_gradient_boosting | 0.1237 | 0.6902 | 0.181 | 0.123 | 0.342 | 0.1842 |
+| xgboost ✅ | 0.1215 | 0.6955 | 0.194 | 0.123 | 0.463 | 0.1809 |
 
-Lectura:
-- El **PR-AUC** es la métrica principal (D-19): con tasa base 6.61% en test, el azar
-  da 0.066. **XGBoost lo casi duplica (0.124 ≈ 1.9×)** y la Regresión Logística lo
-  supera con holgura (0.111). Ambos superan claramente al baseline → la complejidad
-  se justifica.
-- El **baseline de regla** (distancia + cruce de estado) es **anti-informativo en
-  test** (ROC-AUC 0.34): la regla simple que parecía razonable en el periodo
-  antiguo no generaliza al nuevo régimen. Otra evidencia de que el problema exige un
-  modelo, no una heurística.
-- **XGBoost** gana a la Logística en discriminación (ROC-AUC 0.703 vs 0.665), recall
-  (0.346 vs 0.234) y, sobre todo, **calibración** (Brier 0.186 vs 0.296): el árbol
-  regularizado entrega probabilidades mucho más sensatas.
+- **Calibración (isotonic)** del mejor: Brier 0.1809 → **0.0615**.
+- **Re-ventaneo temporal (R-14/D-29)** — reentrenar `xgboost` con el 50% más reciente del train (tasa base 13.37%): PR-AUC(test) **0.0672**, ROC-AUC **0.4545**, recall **0.163**.
+- **Punto de alta cobertura** (umbral 0.463): recall **0.600**, precision 0.115, alertando 34.4% de las órdenes.
+- **Auditoría de fuga (R-12):** `tasa_vendedor` pesa 5.1% (bajo → sin fuga). Métricas en rango realista.
 
-Curvas y calibración: ver `reports/figures_modelado_etapa4/01_curvas_pr_roc.png` y
-`02_calibracion.png`.
+## 2. Clasificación multiclase (`clase_entrega`)
 
----
-
-## 4. Puntos de operación (cómo se usa el modelo)
-
-El modelo entrega una **probabilidad de riesgo**; el umbral traduce esa probabilidad
-en una alerta. Se documentan dos puntos sobre TEST:
-
-| Punto de operación | Umbral | Recall | Precision | % órdenes alertadas |
-|---|---|---|---|---|
-| **F1-óptimo** (balance) | 0.574 | 0.346 | 0.132 | 17.3% |
-| **Alta cobertura** (recall≈0.5 en val) | 0.468 | **0.628** | 0.118 | 35.2% |
-
-- Para **alertar** órdenes en riesgo, el punto de alta cobertura **captura el ~63%
-  de las entregas tardías** alertando el 35% de las órdenes, con precisión 11.8%
-  (1.8× la tasa base). La elección final del umbral es una decisión de negocio
-  (¿cuántas alertas tolera Olist?) que el PO afinará en la Etapa 6 (D-28).
-
----
-
-## 5. Auditoría de fuga (R-12)
-
-- **Sin señal de fuga.** Las métricas están en rango realista (ROC-AUC 0.70, PR-AUC
-  0.12), **lejos** del 0.99 que delataría fuga.
-- **`tasa_vendedor` pesa solo 6.0%** de la importancia total. La feature "más
-  sensible a fuga" **no domina** el modelo → el cálculo point-in-time de la Etapa 3
-  (con prueba anti-fuga) se sostiene.
-- El candado `assert_sin_features_post` confirma que ninguna columna [POST] entró
-  como feature.
-
----
-
-## 6. Qué aprendió el modelo (lectura de negocio)
-
-Top de importancias (XGBoost; ver `04_importancias.png`):
-
-1. `customer_state_SP` (0.107) y `customer_state_RJ` (0.063) — **la geografía del
-   cliente manda**.
-2. `mismo_estado` (0.062) — **cruce de estado cliente-vendedor** (proxy de distancia
-   logística).
-3. `tasa_vendedor` (0.060) — **historial de puntualidad del vendedor**.
-4. `mes_compra` (0.049) — **estacionalidad** (coherente con el régimen 2018, R-14).
-5. `customer_state_MG`, `seller_state_SP`, `dias_prometidos`, `dist_haversine_km`…
-
-Esto **reproduce la narrativa del EDA**: geografía/región, cercanía cliente-vendedor,
-desempeño del vendedor, colchón de la promesa y estacionalidad. El modelo aprende
-señal de negocio, no un artefacto.
-
----
-
-## 7. Análisis de errores
-
-### Por región (test, umbral F1)
-
-| Región | Órdenes | Tasa tardía real | Recall del modelo |
+| Modelo | macro-F1(test) | balanced-acc(test) | weighted-F1(test) |
 |---|---|---|---|
-| Sudeste | 10,228 | 7.6% | 0.30 |
-| Nordeste | 1,256 | 5.3% | **0.83** |
-| Centro-Oeste | 837 | 4.9% | 0.54 |
-| Norte | 225 | 4.0% | 0.56 |
-| Sul | 1,925 | 3.3% | 0.25 |
+| logistic_regression | 0.2581 | 0.4413 | 0.3905 |
+| random_forest ✅ | 0.4224 | 0.4996 | 0.7048 |
+| hist_gradient_boosting | 0.3356 | 0.4901 | 0.5534 |
+| xgboost | 0.3579 | 0.4975 | 0.5829 |
 
-> **Matiz de coherencia.** El gradiente regional del EDA (Norte/Nordeste peor que SP)
-> se midió sobre **todo el periodo**. En la **ventana de test** (cola temporal, menor
-> tardanza global) el Sudeste concentra la tardanza absoluta por volumen, pero el
-> modelo alcanza su **mejor recall en Nordeste (0.83) y Norte (0.56)** — justo donde
-> el dolor histórico es mayor. Ver `03_error_por_region.png`.
+Recall por clase (mejor modelo):
+- `muy_temprano`: recall 0.690, precision 0.933 (n=12,033)
+- `a_tiempo`: recall 0.683, precision 0.271 (n=1,481)
+- `tarde`: recall 0.126, precision 0.066 (n=957)
 
-### Cold-start de vendedores (`sin_historial_vendedor == 1`)
+## 3. Regresión (`dias_vs_promesa`)
 
-| Segmento | Órdenes | PR-AUC | ROC-AUC | Recall | Precision |
+| Modelo | MAE(test) | RMSE(test) | R²(test) |
+|---|---|---|---|
+| ridge | 5.209 | 6.604 | 0.373 |
+| random_forest | 4.304 | 5.868 | 0.505 |
+| hist_gradient_boosting | 4.181 | 5.694 | 0.534 |
+| xgboost ✅ | 4.238 | 5.729 | 0.528 |
+
+- **Binario derivado** (predecir días y alertar si > 0): PR-AUC **0.1428**, ROC-AUC **0.7563**, recall(umbral 0) 0.027. Vía alternativa al clasificador directo.
+
+> **Importante (interpretación):** la regresión se usa como **ranqueador de riesgo** (su salida se **calibra** a probabilidad de retraso), **NO** como estimador de los días exactos. Por la cola pesada y el techo de datos, *encoge* las predicciones hacia el promedio y **subestima la magnitud de los tardíos** (ver `06_regresion_pred_vs_real.png`: las órdenes muy tardías se predicen cerca de 0). Por eso se opera con el **umbral calibrado**, no con `días>0` (que daría recall ≈0.03).
+
+## 4. Modelo de riesgo CONFIABLE (recomendado)
+
+Score de la regresión calibrado a P(tarde) (isotónica en `val`). Es el de mayor discriminación y mejor calibrado: **PR-AUC 0.1323**, **ROC-AUC 0.7421**, **Brier 0.0629** (vs Etapa 4: 0.124 / 0.703 / 0.186).
+
+| Punto de operación | umbral | recall | precision | F1 | % alertas |
 |---|---|---|---|---|---|
-| Con historial | 12,820 | 0.126 | 0.701 | 0.351 | 0.134 |
-| Cold-start (sin historial) | 1,651 | 0.106 | 0.722 | 0.298 | 0.113 |
+| recall_obj_60 | 0.0813 | 0.918 | 0.097 | 0.175 | 62.7% |
+| recall_obj_70 | 0.0721 | 0.921 | 0.095 | 0.172 | 64.0% |
+| recall_obj_80 | 0.0496 | 0.946 | 0.088 | 0.161 | 71.0% |
 
-El desempeño en *cold-start* es **ligeramente menor en PR-AUC/recall** pero
-**comparable en ROC-AUC** (0.72): el respaldo a la tasa global + el flag de la Etapa
-3 sostienen al modelo cuando el vendedor es nuevo. Es un caso real de producción y se
-reporta por separado.
+Artefacto: `artifacts/modelo_riesgo_p1.joblib` (regresor + calibrador isotónico + puntos de operación). El umbral es ajustable según cuántas alertas tolere el negocio (decisión del PO, Etapa 6).
 
----
+> **Hallazgo (D-32):** añadir features [t0] derivadas (tasas point-in-time por ruta/categoría, estacionalidad) **no mejora** — degrada el test (ROC 0.696→0.591) por drift de régimen (R-14). El techo de P1 lo fijan los datos, no el modelado.
 
-## 8. Conclusión y selección
+## 5. Validación cruzada TEMPORAL (robustez ante estacionalidad)
 
-- **Modelo candidato del Sprint 1: XGBoost `xgb_d4_l2`** (profundidad 4, 300 árboles,
-  `reg_lambda=2`, `min_child_weight=5`, `scale_pos_weight≈10`), encadenado al
-  preprocesador de la Etapa 3 en un único `Pipeline`, serializado en
-  `artifacts/modelo_p1.joblib` con su umbral y metadatos.
-- **Métricas defendibles y honestas** para un MVP de Sprint 1: PR-AUC 0.124 (1.9× el
-  azar), ROC-AUC 0.703, sin fuga, con lectura de negocio coherente.
-- **Pendientes para la Etapa 6** (evaluación final, HU-12): calibración formal
-  (el Brier mejora pero el régimen desplaza la probabilidad), selección definitiva
-  del umbral con el PO, y decisión sobre el re-ventaneo temporal (R-14).
+TimeSeriesSplit (5 folds) sobre la serie ordenada por fecha: cada fold entrena en el pasado y evalúa en el período siguiente (no es aleatoria; no sustituye al test). Comprueba si los modelos aguantan los cambios estacionales/atípicos de la serie (R-14).
 
----
+| Modelo | ROC-AUC medio | ± std | PR-AUC medio | ± std |
+|---|---|---|---|---|
+| logistic_regression | 0.691 | 0.046 | 0.170 | 0.085 |
+| random_forest | 0.670 | 0.034 | 0.167 | 0.086 |
+| hist_gradient_boosting | 0.671 | 0.023 | 0.164 | 0.074 |
+| xgboost | 0.675 | 0.026 | 0.173 | 0.085 |
 
-*Reporte de resultados del modelado de P1, Etapa 4 — equipo Vertex Insights.
-Números reproducibles desde `reports/etapa4_metrics.json` y
-`python -m src.models.train`.*
+Desviación baja ⇒ modelo robusto entre períodos. Ver `figuras/09_cv_temporal.png` (la línea de tasa base muestra dónde están los períodos atípicos).
+
+## Artefactos y figuras
+
+- Modelos: `artifacts/modelo_riesgo_p1.joblib` (recomendado), `modelo_binario.joblib`, `modelo_multiclase.joblib`, `modelo_regresion.joblib`.
+- Figuras: `reports/figures_modelado_etapa4/` — curvas PR/ROC (01), calibración (02), región tasa-real vs recall **separadas** (03), importancias (04), confusión multiclase (05), regresión pred-vs-real (06), **recall por modelo** (07), **matrices de confusión binarias por modelo** (08), **CV temporal** (09).
+- **Punto de operación en cada figura (a propósito difieren):** la **03** usa el modelo recomendado en su punto de despliegue (recall≈0.70); la **07** compara los modelos en su umbral **F1** (recall natural, para rankearlos); la **08** usa el punto de **despliegue (recall≈0.80)**. Por eso el recall no es el mismo entre figuras: cada una responde a una pregunta distinta.
+- Métricas reproducibles: `reports/etapa4_metrics.json`.
+
+*Mismas features [t0] y split temporal de la Etapa 3; sin fuga. Reproducible con `python -m src.models.train_multimodelo`.*

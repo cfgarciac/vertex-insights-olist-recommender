@@ -1,4 +1,10 @@
-"""Entrenamiento y selección de modelos de P1 (entrega tardía) — Etapa 4.
+"""Entrenamiento y selección de modelos de P1 (entrega tardía) — Etapa 4 (clasificador, legacy).
+
+NOTA (post D-30/D-31): este es el trainer BINARIO original de la Etapa 4. El modelado
+consolidado y el **modelo recomendado** (`artifacts/modelo_riesgo_p1.joblib`, regresión
+calibrada) los produce `src/models/train_multimodelo.py`, que escribe en `reports/etapa4_*`
+y `reports/figures_modelado_etapa4/`. `train.py` se conserva como referencia reproducible
+del clasificador de entrega tardía; el antiguo `modelo_p1.joblib` fue retirado.
 
 Orquesta el modelado completo sobre la tabla analítica de la Etapa 3:
 
@@ -249,7 +255,7 @@ def run(data_path: Path) -> dict:
         y_te,
         FIG_DIR,
     )
-    ev.graficar_importancias(importancias, f"Importancias — {mejor} (test)", FIG_DIR, "04_importancias.png")
+    ev.graficar_importancias(importancias, f"Importancias — {mejor} (test)", FIG_DIR, "04_importancias_binario.png")
     ev.graficar_error_regional(tabla_region, FIG_DIR)
 
     # --- Serialización del modelo elegido -------------------------------- #
