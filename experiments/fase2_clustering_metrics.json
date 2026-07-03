@@ -1,0 +1,501 @@
+{
+  "generated_at": "2026-07-02 20:54",
+  "dataset": "C:\\Users\\LENOVO\\Documents\\Cursos\\Soy Henry\\PF\\proyecto\\vertex-insights-olist-recommender\\data\\processed\\orders_fase2_regresion_rolling.csv",
+  "target": "dias_entrega_real",
+  "baseline": {
+    "modelo": "random_forest",
+    "feature_set": "M0_mas_seller_rolling",
+    "metrics": {
+      "train": {
+        "mae": 4.776811642709025,
+        "medae": 3.317571076467433,
+        "rmse": 7.9425250942206365,
+        "p90_abs_error": 9.694272653166026,
+        "bias_mean": 0.01485906294544937
+      },
+      "val": {
+        "mae": 4.5532201741241956,
+        "medae": 3.625169649744726,
+        "rmse": 6.461165361565339,
+        "p90_abs_error": 8.611564322963565,
+        "bias_mean": 0.9473938350936723
+      },
+      "test": {
+        "mae": 3.989400802937607,
+        "medae": 3.3144102255065953,
+        "rmse": 5.323710919668561,
+        "p90_abs_error": 7.653349079075278,
+        "bias_mean": 2.297104895169445
+      }
+    }
+  },
+  "success_criteria": [
+    "Mejora minima de MAE val: al menos 0.02 dias frente al baseline vigente.",
+    "No degradar test de forma relevante: maximo +0.03 dias de MAE test.",
+    "No empeorar P90: cumplimiento test no debe caer mas de 0.2 puntos porcentuales.",
+    "Cluster interpretable con descripcion operativa simple.",
+    "Cobertura suficiente y fallback claro para rutas/sellers nuevos.",
+    "Costo productivo razonable frente a la mejora observada."
+  ],
+  "cluster_inputs": [
+    {
+      "cluster": "ruta",
+      "variables": "dist_haversine_km_median, flete_total_median, ratio_flete_median, precio_total_median, peso_total_g_median, volumen_total_cm3_median, n_items_mean, mismo_estado_mean, ordenes_train, customer_state_mode, seller_state_mode",
+      "usa_target": "no",
+      "lectura": "perfil de origen-destino por distancia, costo y volumen de train"
+    },
+    {
+      "cluster": "seller",
+      "variables": "dist_haversine_km_median, flete_total_median, ratio_flete_median, precio_total_median, peso_total_g_median, volumen_total_cm3_median, n_items_mean, mismo_estado_mean, ordenes_train, categorias_unicas, destinos_unicos, seller_state_mode, categoria_principal_mode, customer_state_mode",
+      "usa_target": "no",
+      "lectura": "perfil operativo del seller en train; seller_id solo asigna el grupo"
+    },
+    {
+      "cluster": "geo",
+      "variables": "dist_haversine_km, mismo_estado, customer_state, seller_state",
+      "usa_target": "no",
+      "lectura": "agrupacion simple por distancia, mismo estado, destino y origen"
+    }
+  ],
+  "comparison": [
+    {
+      "variant": "ruta_k4",
+      "cluster_type": "ruta",
+      "k": 4,
+      "mae_val": 4.55278091742861,
+      "mae_test": 3.987048363717333,
+      "p90_abs_error_val": 8.619067673739636,
+      "p90_abs_error_test": 7.653443185979473,
+      "bias_val": 0.9385880036631297,
+      "bias_test": 2.2955064428490553,
+      "delta_mae_val_vs_baseline": -0.00043925669558575464,
+      "delta_mae_test_vs_baseline": -0.0023524392202740607
+    },
+    {
+      "variant": "ruta_k8",
+      "cluster_type": "ruta",
+      "k": 8,
+      "mae_val": 4.552606361951435,
+      "mae_test": 3.9866089341581072,
+      "p90_abs_error_val": 8.598862686325738,
+      "p90_abs_error_test": 7.651747029864879,
+      "bias_val": 0.9493728165516152,
+      "bias_test": 2.294713563520109,
+      "delta_mae_val_vs_baseline": -0.000613812172760575,
+      "delta_mae_test_vs_baseline": -0.002791868779499662
+    },
+    {
+      "variant": "seller_k4",
+      "cluster_type": "seller",
+      "k": 4,
+      "mae_val": 4.555101220451251,
+      "mae_test": 3.9934123842611142,
+      "p90_abs_error_val": 8.60864359055489,
+      "p90_abs_error_test": 7.65025940282898,
+      "bias_val": 0.9561476834464706,
+      "bias_test": 2.3057271339089005,
+      "delta_mae_val_vs_baseline": 0.0018810463270551026,
+      "delta_mae_test_vs_baseline": 0.004011581323507318
+    },
+    {
+      "variant": "seller_k8",
+      "cluster_type": "seller",
+      "k": 8,
+      "mae_val": 4.556470540389453,
+      "mae_test": 3.995837158081492,
+      "p90_abs_error_val": 8.614152512181137,
+      "p90_abs_error_test": 7.644127033644281,
+      "bias_val": 0.9594753542427126,
+      "bias_test": 2.3092674250764014,
+      "delta_mae_val_vs_baseline": 0.0032503662652576537,
+      "delta_mae_test_vs_baseline": 0.006436355143885297
+    },
+    {
+      "variant": "geo_k4",
+      "cluster_type": "geo",
+      "k": 4,
+      "mae_val": 4.553864523028766,
+      "mae_test": 3.9896412054443036,
+      "p90_abs_error_val": 8.614099476372262,
+      "p90_abs_error_test": 7.652309112663524,
+      "bias_val": 0.9478050421124353,
+      "bias_test": 2.297404772731027,
+      "delta_mae_val_vs_baseline": 0.0006443489045704354,
+      "delta_mae_test_vs_baseline": 0.00024040250669665753
+    },
+    {
+      "variant": "geo_k8",
+      "cluster_type": "geo",
+      "k": 8,
+      "mae_val": 4.563888086886297,
+      "mae_test": 4.004627159681807,
+      "p90_abs_error_val": 8.693012187343387,
+      "p90_abs_error_test": 7.674192509960717,
+      "bias_val": 0.9766371223816371,
+      "bias_test": 2.3179508418844166,
+      "delta_mae_val_vs_baseline": 0.010667912762101217,
+      "delta_mae_test_vs_baseline": 0.015226356744199698
+    }
+  ],
+  "best_variant": {
+    "variant": "ruta_k8",
+    "cluster_type": "ruta",
+    "k": 8,
+    "mae_val": 4.552606361951435,
+    "mae_test": 3.9866089341581072,
+    "p90_abs_error_val": 8.598862686325738,
+    "p90_abs_error_test": 7.651747029864879,
+    "bias_val": 0.9493728165516152,
+    "bias_test": 2.294713563520109,
+    "delta_mae_val_vs_baseline": -0.000613812172760575,
+    "delta_mae_test_vs_baseline": -0.002791868779499662
+  },
+  "coverage": [
+    {
+      "variant": "ruta_k4",
+      "cluster_type": "ruta",
+      "split": "train",
+      "ordenes": 67529,
+      "coverage_pct": 100.0,
+      "fallback_pct": 0.0,
+      "clusters_observados": 4
+    },
+    {
+      "variant": "ruta_k4",
+      "cluster_type": "ruta",
+      "split": "val",
+      "ordenes": 14470,
+      "coverage_pct": 99.84105044920526,
+      "fallback_pct": 0.15894955079474776,
+      "clusters_observados": 5
+    },
+    {
+      "variant": "ruta_k4",
+      "cluster_type": "ruta",
+      "split": "test",
+      "ordenes": 14471,
+      "coverage_pct": 99.80650957086587,
+      "fallback_pct": 0.19349042913413034,
+      "clusters_observados": 5
+    },
+    {
+      "variant": "ruta_k8",
+      "cluster_type": "ruta",
+      "split": "train",
+      "ordenes": 67529,
+      "coverage_pct": 100.0,
+      "fallback_pct": 0.0,
+      "clusters_observados": 8
+    },
+    {
+      "variant": "ruta_k8",
+      "cluster_type": "ruta",
+      "split": "val",
+      "ordenes": 14470,
+      "coverage_pct": 99.84105044920526,
+      "fallback_pct": 0.15894955079474776,
+      "clusters_observados": 9
+    },
+    {
+      "variant": "ruta_k8",
+      "cluster_type": "ruta",
+      "split": "test",
+      "ordenes": 14471,
+      "coverage_pct": 99.80650957086587,
+      "fallback_pct": 0.19349042913413034,
+      "clusters_observados": 9
+    },
+    {
+      "variant": "seller_k4",
+      "cluster_type": "seller",
+      "split": "train",
+      "ordenes": 67529,
+      "coverage_pct": 100.0,
+      "fallback_pct": 0.0,
+      "clusters_observados": 4
+    },
+    {
+      "variant": "seller_k4",
+      "cluster_type": "seller",
+      "split": "val",
+      "ordenes": 14470,
+      "coverage_pct": 90.3317208016586,
+      "fallback_pct": 9.668279198341397,
+      "clusters_observados": 5
+    },
+    {
+      "variant": "seller_k4",
+      "cluster_type": "seller",
+      "split": "test",
+      "ordenes": 14471,
+      "coverage_pct": 74.81860272268676,
+      "fallback_pct": 25.18139727731325,
+      "clusters_observados": 5
+    },
+    {
+      "variant": "seller_k8",
+      "cluster_type": "seller",
+      "split": "train",
+      "ordenes": 67529,
+      "coverage_pct": 100.0,
+      "fallback_pct": 0.0,
+      "clusters_observados": 8
+    },
+    {
+      "variant": "seller_k8",
+      "cluster_type": "seller",
+      "split": "val",
+      "ordenes": 14470,
+      "coverage_pct": 90.3317208016586,
+      "fallback_pct": 9.668279198341397,
+      "clusters_observados": 9
+    },
+    {
+      "variant": "seller_k8",
+      "cluster_type": "seller",
+      "split": "test",
+      "ordenes": 14471,
+      "coverage_pct": 74.81860272268676,
+      "fallback_pct": 25.18139727731325,
+      "clusters_observados": 9
+    },
+    {
+      "variant": "geo_k4",
+      "cluster_type": "geo",
+      "split": "train",
+      "ordenes": 67529,
+      "coverage_pct": 100.0,
+      "fallback_pct": 0.0,
+      "clusters_observados": 4
+    },
+    {
+      "variant": "geo_k4",
+      "cluster_type": "geo",
+      "split": "val",
+      "ordenes": 14470,
+      "coverage_pct": 100.0,
+      "fallback_pct": 0.0,
+      "clusters_observados": 4
+    },
+    {
+      "variant": "geo_k4",
+      "cluster_type": "geo",
+      "split": "test",
+      "ordenes": 14471,
+      "coverage_pct": 100.0,
+      "fallback_pct": 0.0,
+      "clusters_observados": 4
+    },
+    {
+      "variant": "geo_k8",
+      "cluster_type": "geo",
+      "split": "train",
+      "ordenes": 67529,
+      "coverage_pct": 100.0,
+      "fallback_pct": 0.0,
+      "clusters_observados": 8
+    },
+    {
+      "variant": "geo_k8",
+      "cluster_type": "geo",
+      "split": "val",
+      "ordenes": 14470,
+      "coverage_pct": 100.0,
+      "fallback_pct": 0.0,
+      "clusters_observados": 8
+    },
+    {
+      "variant": "geo_k8",
+      "cluster_type": "geo",
+      "split": "test",
+      "ordenes": 14471,
+      "coverage_pct": 100.0,
+      "fallback_pct": 0.0,
+      "clusters_observados": 8
+    }
+  ],
+  "cluster_descriptions": [
+    {
+      "tipo": "ruta",
+      "cluster": "ruta_cluster_k4_0",
+      "ordenes_train": 38592,
+      "dist_mediana": 575.585633880562,
+      "flete_mediano": 17.67,
+      "mismo_estado_pct": 0.0,
+      "customer_state_top": "RJ",
+      "seller_state_top": "SP",
+      "categoria_top": "bed_bath_table",
+      "rutas_train": 174
+    },
+    {
+      "tipo": "ruta",
+      "cluster": "ruta_cluster_k4_2",
+      "ordenes_train": 23083,
+      "dist_mediana": 100.02402539688327,
+      "flete_mediano": 12.6,
+      "mismo_estado_pct": 100.0,
+      "customer_state_top": "SP",
+      "seller_state_top": "SP",
+      "categoria_top": "bed_bath_table",
+      "rutas_train": 17
+    },
+    {
+      "tipo": "ruta",
+      "cluster": "ruta_cluster_k4_3",
+      "ordenes_train": 5551,
+      "dist_mediana": 2149.0502021070715,
+      "flete_mediano": 30.91,
+      "mismo_estado_pct": 0.0,
+      "customer_state_top": "PE",
+      "seller_state_top": "SP",
+      "categoria_top": "health_beauty",
+      "rutas_train": 145
+    },
+    {
+      "tipo": "ruta",
+      "cluster": "ruta_cluster_k4_1",
+      "ordenes_train": 303,
+      "dist_mediana": 757.2442958567996,
+      "flete_mediano": 36.98,
+      "mismo_estado_pct": 0.0,
+      "customer_state_top": "SP",
+      "seller_state_top": "ES",
+      "categoria_top": "garden_tools",
+      "rutas_train": 45
+    },
+    {
+      "tipo": "seller",
+      "cluster": "seller_cluster_k4_0",
+      "ordenes_train": 43826,
+      "dist_mediana": 439.6839779561751,
+      "flete_mediano": 16.32,
+      "mismo_estado_pct": 35.68201524209373,
+      "customer_state_top": "SP",
+      "seller_state_top": "SP",
+      "categoria_top": "bed_bath_table",
+      "sellers_train": 241
+    },
+    {
+      "tipo": "seller",
+      "cluster": "seller_cluster_k4_1",
+      "ordenes_train": 12565,
+      "dist_mediana": 343.83001658941663,
+      "flete_mediano": 16.0,
+      "mismo_estado_pct": 48.3008356545961,
+      "customer_state_top": "SP",
+      "seller_state_top": "SP",
+      "categoria_top": "health_beauty",
+      "sellers_train": 830
+    },
+    {
+      "tipo": "seller",
+      "cluster": "seller_cluster_k4_2",
+      "ordenes_train": 10524,
+      "dist_mediana": 616.2437502848738,
+      "flete_mediano": 18.7,
+      "mismo_estado_pct": 11.412010642341315,
+      "customer_state_top": "SP",
+      "seller_state_top": "PR",
+      "categoria_top": "computers_accessories",
+      "sellers_train": 1007
+    },
+    {
+      "tipo": "seller",
+      "cluster": "seller_cluster_k4_3",
+      "ordenes_train": 614,
+      "dist_mediana": 505.59179184728623,
+      "flete_mediano": 67.52000000000001,
+      "mismo_estado_pct": 28.501628664495115,
+      "customer_state_top": "SP",
+      "seller_state_top": "SP",
+      "categoria_top": "auto",
+      "sellers_train": 100
+    },
+    {
+      "tipo": "geo",
+      "cluster": "geo_cluster_k4_2",
+      "ordenes_train": 23083,
+      "dist_mediana": 100.02402539688327,
+      "flete_mediano": 12.6,
+      "mismo_estado_pct": 100.0,
+      "customer_state_top": "SP",
+      "seller_state_top": "SP",
+      "categoria_top": "bed_bath_table"
+    },
+    {
+      "tipo": "geo",
+      "cluster": "geo_cluster_k4_1",
+      "ordenes_train": 21910,
+      "dist_mediana": 544.1937211157767,
+      "flete_mediano": 17.384999999999998,
+      "mismo_estado_pct": 0.0,
+      "customer_state_top": "RJ",
+      "seller_state_top": "SP",
+      "categoria_top": "bed_bath_table"
+    },
+    {
+      "tipo": "geo",
+      "cluster": "geo_cluster_k4_0",
+      "ordenes_train": 14680,
+      "dist_mediana": 575.8424142647032,
+      "flete_mediano": 17.98,
+      "mismo_estado_pct": 0.0,
+      "customer_state_top": "SP",
+      "seller_state_top": "PR",
+      "categoria_top": "computers_accessories"
+    },
+    {
+      "tipo": "geo",
+      "cluster": "geo_cluster_k4_3",
+      "ordenes_train": 7856,
+      "dist_mediana": 2017.9184121278968,
+      "flete_mediano": 27.73,
+      "mismo_estado_pct": 0.0,
+      "customer_state_top": "BA",
+      "seller_state_top": "SP",
+      "categoria_top": "health_beauty"
+    }
+  ],
+  "p90_comparison": [
+    {
+      "variant": "baseline",
+      "margen_p90_val": 6.278480242329543,
+      "cumplimiento_test": 96.45497892336397,
+      "incumplimiento_test": 3.5450210766360346,
+      "colchon_promedio_test": 9.072810279722919,
+      "colchon_mediano_test": 9.568055555555556,
+      "promesa_promedio_test": 17.440812659802365,
+      "promesa_mediana_test": 17.0
+    },
+    {
+      "variant": "ruta_k8",
+      "margen_p90_val": 6.278480242329543,
+      "cumplimiento_test": 96.43424780595674,
+      "incumplimiento_test": 3.565752194043259,
+      "colchon_promedio_test": 9.069631508387143,
+      "colchon_mediano_test": 9.562129629629629,
+      "promesa_promedio_test": 17.43763388846659,
+      "promesa_mediana_test": 17.0
+    }
+  ],
+  "recommended_decision": "no incorporar al MVP",
+  "reason": "La mejor variante (`ruta_k8`) no supera el umbral minimo de mejora en MAE val frente al baseline vigente. Como el MVP ya funciona sin clustering, la complejidad adicional no queda justificada.",
+  "productive_cost": "Alto frente a una feature tabular simple: exige versionar clusters, fallbacks para llaves nuevas, monitoreo de drift y explicacion adicional para negocio.",
+  "integration_plan_if_approved": [
+    "Congelar una definicion de cluster y recalcularla solo con train/historial cerrado.",
+    "Versionar el artefacto de clustering y el mapa ruta/seller -> cluster.",
+    "Definir fallback para rutas o sellers nuevos: cluster `nuevo_o_sin_perfil` o perfil global.",
+    "Agregar tests anti-leakage que fallen si el target entra al clustering.",
+    "Actualizar documentacion de Fase 2, modelado y backtesting antes de integrarlo.",
+    "Integrar solo despues del cierre de Fase 2 MVP, como mejora posterior aprobada."
+  ],
+  "anti_leakage": {
+    "target_used_for_clustering": false,
+    "forbidden_cluster_inputs_intersection": [],
+    "seller_id_used_as_regressor_feature": false,
+    "seller_id_used_only_as_mapping_key": true,
+    "test_used_to_fit_clusters": false,
+    "test_used_to_select_variant": false,
+    "models_saved": false
+  }
+}

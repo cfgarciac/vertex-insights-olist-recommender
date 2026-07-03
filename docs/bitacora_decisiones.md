@@ -1201,6 +1201,142 @@ D-30 dejó *diferido* añadir features específicas. Para intentar subir el tech
 - Negativas o trade-offs: el binario directo se mantiene en ~0.12 de PR-AUC hasta que haya datos nuevos o se trate el régimen.
 
 **Etapa asociada:** 4 (re-ejecución)
+### D-33 — Framing de P1: clasificación (Fase 1, entregada) + regresión de duración (Fase 2)
+
+> *Nota de integración: las decisiones D-33 a D-37 se registraron en la rama `Harrison`
+> como D-30 a D-34; se renumeran aquí al integrarse después de D-30–D-32 (ya asignadas),
+> conservando su contenido íntegro.*
+
+**Fecha:** 2026-06-28 · **Estado:** Aceptada · **Responsable:** Equipo + mentoría DVA
+**Contexto:** D-19/D-20 fijaron clasificación sin pesarla vs regresión por valor; la
+regresión quedó pendiente (decisiones_fe.md). El DVA aporta evidencia para decidir.
+**Decisión:** Fase 1 = clasificación `entrega_tarde` (V1.3.0, conservada). Fase 2 =
+regresión sobre `dias_entrega_real` (target C) para afinar la promesa. Target B descartado.
+**Alternativas:** seguir solo con A (techo de valor; palanca de ops débil); regresión sobre
+B (sesgada). **Consecuencias:** reusa el cimiento del repo; exige nivel de servicio (Charter);
+el valor de afinar la promesa no es medible con este dataset (limitación declarada).
+**Etapa asociada:** transversal (cierre de reconciliación).
+
+---
+
+### D-34 - Cierre del MVP de Fase 2
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Product Owner + Data Scientist
+
+**Contexto:**
+La Fase 2 ya completo ETL experimental, EDA, features rolling point-in-time,
+modelado de regresion, backtesting P80/P90/P95 y experimento de clustering. El
+repositorio mantiene Fase 1 aislada y no se guardaron modelos productivos de Fase
+2.
+
+**Decision:**
+Se cierra formalmente el MVP offline de Fase 2 como regresion supervisada tabular
+sobre `dias_entrega_real`, con evaluacion temporal y documentacion de alcance,
+limitaciones y riesgos.
+
+**Alternativas consideradas:**
+- Extender el MVP hacia API/dashboard - descartado por estar fuera del alcance de
+  cierre documental.
+- Incorporar mas experimentos antes del cierre - descartado para evitar alcance
+  abierto sin mejora material.
+
+**Consecuencias:**
+- Positivas: Fase 2 queda trazable, defendible y separada de Fase 1.
+- Negativas o trade-offs: la solucion queda como MVP offline, no como producto en
+  produccion.
+
+**Etapa asociada:** Fase 2
+
+---
+
+### D-35 - Seleccion del modelo Random Forest para Fase 2
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Data Scientist
+
+**Contexto:**
+Chat E comparo baselines, Ridge, Random Forest y XGBoost usando split temporal. La
+seleccion se hizo por menor MAE en validacion; test se reservo para evaluacion
+final del candidato elegido.
+
+**Decision:**
+Se selecciona `random_forest` con feature set `M0_mas_seller_rolling` como modelo
+MVP de Fase 2. Metricas finales: MAE val 4.553 dias, MAE test 3.989 dias y bias
+test +2.297 dias.
+
+**Alternativas consideradas:**
+- Medianas por ruta/estado - utiles como baseline, pero no como mejor candidato.
+- Ridge - descartado por mayor MAE.
+- XGBoost Regressor - competitivo, pero no supero al candidato elegido en val.
+
+**Consecuencias:**
+- Positivas: modelo tabular robusto, supera baselines y conserva disciplina
+  anti-leakage.
+- Negativas o trade-offs: menor interpretabilidad directa que un modelo lineal y
+  tendencia conservadora en test.
+
+**Etapa asociada:** Fase 2
+
+---
+
+### D-36 - Politica P90 como candidata preliminar de promesa
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Product Owner + Data Scientist
+
+**Contexto:**
+El backtesting simulo la promesa actual de Olist y las politicas P80, P90 y P95
+usando margenes calculados en validacion y evaluacion final en test.
+
+**Decision:**
+Se deja P90 como politica candidata preliminar para discusion de negocio. En test
+logra 96.46% de cumplimiento, colchon promedio 9.07 dias y promesa promedio 17.44
+dias, frente a 94.32%, 10.75 dias y 19.12 dias de la promesa actual Olist.
+
+**Alternativas consideradas:**
+- P80 - mas competitiva, pero con mayor incumplimiento simulado.
+- P95 - mas confiable, pero demasiado conservadora y con promesa promedio mas
+  alta.
+
+**Consecuencias:**
+- Positivas: ofrece un balance defendible entre confianza y competitividad.
+- Negativas o trade-offs: requiere validacion con costos reales y apetito de
+  riesgo antes de produccion.
+
+**Etapa asociada:** Fase 2
+
+---
+
+### D-37 - Clustering no incorporado al MVP de Fase 2
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Data Scientist + Machine Learning Engineer
+
+**Contexto:**
+Chat G probo clustering de rutas, sellers y variables geograficas como experimento
+avanzado. La mejor variante fue `ruta_k8`, con mejora aproximada de -0.0006 dias
+en MAE val y -0.0028 dias en MAE test. En P90, el cumplimiento test baja
+levemente de 96.455% a 96.434%.
+
+**Decision:**
+No incorporar clustering al MVP. Queda documentado como linea experimental futura.
+
+**Alternativas consideradas:**
+- Incorporar `ruta_k8` - descartado por mejora insignificante frente al costo
+  productivo.
+- Probar mas valores de k o mas variantes - diferido fuera del MVP.
+
+**Consecuencias:**
+- Positivas: evita mantener un segundo componente sin valor material.
+- Negativas o trade-offs: se abandona por ahora una posible linea avanzada de
+  agrupamiento logistico.
+
+**Etapa asociada:** Fase 2
 
 ---
 
@@ -1211,5 +1347,8 @@ reemplazadas); D-22 a D-26 al feature engineering de la Etapa 3; D-27 a D-29 al
 modelado de la Etapa 4; D-30 a la re-ejecución de la Etapa 3 (ampliación a
 múltiples familias de modelos); D-31 y D-32 al reentrenamiento multi-modelo y a la
 mejora de confiabilidad post-Sprint 1 (modelo de regresión calibrado; las features
-[t0] derivadas no superan el techo por el régimen R-14). Nuevas decisiones se
+[t0] derivadas no superan el techo por el régimen R-14); D-33 a D-37 a la Fase 2
+de regresión de duración (framing, cierre del MVP, Random Forest, política P90 y
+clustering no incorporado; registradas en la rama `Harrison` como D-30 a D-34 y
+renumeradas al integrarse). Nuevas decisiones se
 agregarán durante la ejecución del proyecto.*
