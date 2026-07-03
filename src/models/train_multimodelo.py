@@ -21,9 +21,9 @@ Disciplina mantenida (igual que la Etapa 4):
 
 Salidas:
   - artifacts/modelo_binario.joblib, modelo_multiclase.joblib, modelo_regresion.joblib
-  - reports/multimodelo/metrics_multimodelo.json
-  - reports/multimodelo/resultados_multimodelo.md
-  - reports/multimodelo/figuras/*.png
+  - reports/etapa4_metrics.json
+  - reports/etapa4_modelado_resultados.md
+  - reports/figures_modelado_etapa4/*.png
 
 Ejecución:
     python -m src.models.train_multimodelo
@@ -85,8 +85,8 @@ REG_TARGET_EXTRA = "dias_entrega_real"
 
 DEFAULT_DATA = ROOT / "data" / "processed" / "orders_features.csv"
 ARTIFACTS = ROOT / "artifacts"
-REPORTS = ROOT / "reports" / "multimodelo"
-FIG_DIR = REPORTS / "figuras"
+REPORTS = ROOT / "reports"
+FIG_DIR = REPORTS / "figures_modelado_etapa4"
 X_COLS = NUMERIC_FEATURES + CATEGORICAL_FEATURES
 
 
@@ -523,21 +523,18 @@ def run_regresion(train, val, test) -> dict:
 # Reporte
 # --------------------------------------------------------------------------- #
 def referencia_etapa4() -> dict | None:
-    ruta = ROOT / "reports" / "etapa4_metrics.json"
-    if not ruta.exists():
-        return None
-    try:
-        with open(ruta, encoding="utf-8") as f:
-            j = json.load(f)
-        mejor = j.get("mejor_modelo")
-        return {"modelo": mejor, "test": j["metricas"][mejor]["test"]}
-    except Exception:
-        return None
+    # Baseline histórico del modelo VIEJO de Etapa 4 (XGBoost clasificador), fijo
+    # para comparar. Ya no se lee de etapa4_metrics.json porque ese archivo ahora
+    # contiene las métricas del modelo nuevo (este mismo reporte consolidado).
+    return {
+        "modelo": "xgboost (clasificador viejo)",
+        "test": {"pr_auc": 0.124, "roc_auc": 0.703, "recall": 0.346, "brier": 0.186},
+    }
 
 
 def escribir_reporte(salida: dict) -> None:
     REPORTS.mkdir(parents=True, exist_ok=True)
-    with open(REPORTS / "metrics_multimodelo.json", "w", encoding="utf-8") as f:
+    with open(REPORTS / "etapa4_metrics.json", "w", encoding="utf-8") as f:
         json.dump(salida, f, ensure_ascii=False, indent=2, default=float)
 
     b = salida["binario"]
@@ -646,7 +643,7 @@ def escribir_reporte(salida: dict) -> None:
     L.append("## Artefactos y figuras\n")
     L.append("- Modelos: `artifacts/modelo_riesgo_p1.joblib` (recomendado), `modelo_binario.joblib`, "
              "`modelo_multiclase.joblib`, `modelo_regresion.joblib`.")
-    L.append("- Figuras: `reports/multimodelo/figuras/` — curvas PR/ROC (01), calibración (02), "
+    L.append("- Figuras: `reports/figures_modelado_etapa4/` — curvas PR/ROC (01), calibración (02), "
              "región tasa-real vs recall **separadas** (03), importancias (04), confusión multiclase (05), "
              "regresión pred-vs-real (06), **recall por modelo** (07), **matrices de confusión binarias por "
              "modelo** (08), **CV temporal** (09).")
@@ -655,11 +652,11 @@ def escribir_reporte(salida: dict) -> None:
              "umbral **F1** (recall natural, para rankearlos); la **08** usa el punto de **despliegue "
              "(recall≈0.80)**. Por eso el recall no es el mismo entre figuras: cada una responde a una "
              "pregunta distinta.")
-    L.append("- Métricas reproducibles: `reports/multimodelo/metrics_multimodelo.json`.\n")
+    L.append("- Métricas reproducibles: `reports/etapa4_metrics.json`.\n")
     L.append("*Mismas features [t0] y split temporal de la Etapa 3; sin fuga. Reproducible con "
              "`python -m src.models.train_multimodelo`.*")
 
-    with open(REPORTS / "resultados_multimodelo.md", "w", encoding="utf-8") as f:
+    with open(REPORTS / "etapa4_modelado_resultados.md", "w", encoding="utf-8") as f:
         f.write("\n".join(L))
 
 
@@ -730,8 +727,8 @@ def run(data_path: Path) -> dict:
         for m, d in cv.items()
     }
     escribir_reporte(salida)
-    print(f"\n[ok] reporte -> {REPORTS / 'resultados_multimodelo.md'}")
-    print(f"[ok] métricas -> {REPORTS / 'metrics_multimodelo.json'}")
+    print(f"\n[ok] reporte -> {REPORTS / 'etapa4_modelado_resultados.md'}")
+    print(f"[ok] métricas -> {REPORTS / 'etapa4_metrics.json'}")
     print(f"[ok] modelos  -> {ARTIFACTS}/(modelo_binario|modelo_multiclase|modelo_regresion).joblib")
     return salida
 

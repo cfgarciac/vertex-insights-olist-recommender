@@ -1166,7 +1166,7 @@ Se añade el módulo `src/models/train_multimodelo.py`, que entrena varias famil
 - **Modelo de riesgo elegido**: el **score de la regresión `dias_vs_promesa` calibrado a P(tarde)** (isotónica ajustada en `val`). Mejor discriminación que el binario directo y que la Etapa 4: **ROC-AUC 0.742** (vs 0.703), **PR-AUC 0.132** (vs 0.124), **Brier 0.063** (vs 0.186). A un punto de operación de **alto recall (~0.94 alertando 68% de las órdenes; umbral ajustable)** es consistente por **región** (recall 0.78–0.95) y en **cold-start** de vendedores nuevos (ROC 0.79) → confiable, sin puntos ciegos.
 - **Calibración isotónica** reduce el Brier de 0.186 a ~0.062 (probabilidades fiables como "riesgo").
 
-Artefactos: `artifacts/modelo_binario.joblib`, `modelo_multiclase.joblib`, `modelo_regresion.joblib`; reporte `reports/multimodelo/`. El modelo de Etapa 4 (`artifacts/modelo_p1.joblib`) se conserva intacto.
+Artefactos: `artifacts/modelo_riesgo_p1.joblib` (recomendado) + `modelo_binario/multiclase/regresion.joblib`; reporte y figuras consolidados en la estructura de Etapa 4 (`reports/etapa4_modelado_resultados.md`, `reports/etapa4_metrics.json`, `reports/figures_modelado_etapa4/`). El antiguo `modelo_p1.joblib` (clasificador) se **retiró**.
 
 **Alternativas consideradas:**
 - Clasificador binario directo como entregable — menor ROC y peor calibración que la vía de regresión.

@@ -76,10 +76,10 @@ Las notas de cierre de la historia están en `product_backlog.md`.
 - **Pipeline de preprocesamiento serializado** (`artifacts/pipeline_p1.joblib`):
   `ColumnTransformer` (escalado/encoding/imputación) ajustado solo en train, más
   metadatos (listas de features, target, parámetros).
-- **EDA breve de cambios** (`notebooks/03_EDA_VERTEX.ipynb`): gráficas de
+- **EDA breve de cambios** (`notebooks/03_ETL_FE_VERTEX.ipynb`): gráficas de
   antes/después del ETL+FE (granularidad/universo, target, gradiente regional,
   features nuevas, nulos resueltos, split temporal y régimen 2018). Las 7 figuras
-  se exportan a `reports/figures_eda_etapa3/` (PNG a 150 dpi) para reutilizarse en
+  se exportan a `reports/figures_etl_fe_etapa3/` (PNG a 150 dpi) para reutilizarse en
   informes.
 - **Documento técnico de feature engineering** (`docs/decisiones_fe.md`):
   catálogo de features, ventana del vendedor, imputación, encodings, split y

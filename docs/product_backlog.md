@@ -292,7 +292,7 @@ entrenamiento e inferencia, sin fuga de datos.
   `artifacts/pipeline_p1.joblib` (D-26).
 - **Split temporal 70/15/15** por fecha de compra (D-25).
 - Entregables: `src/features/build_dataset.py`, `vertex_files/orders_features.csv`,
-  `notebooks/03_EDA_VERTEX.ipynb`, `docs/decisiones_fe.md`.
+  `notebooks/03_ETL_FE_VERTEX.ipynb`, `docs/decisiones_fe.md`.
 
 ---
 
@@ -424,10 +424,11 @@ frecuentemente comprados juntos basado en co-ocurrencias,
 
 **Notas de cierre:**
 
-- XGBoost (`xgb_d4_l2`) encadenado al preprocesador en un `Pipeline`; **modelo
-  elegido** (D-27): PR-AUC(test) 0.124 (≈1.9× el azar), ROC-AUC 0.703, recall 0.346.
-- Serializado en `artifacts/modelo_p1.joblib`; auditoría de fuga OK (`tasa_vendedor`
-  6%). Detalle en `reports/etapa4_modelado_resultados.md`.
+- XGBoost (`xgb_d4_l2`) fue el candidato original (D-27): PR-AUC(test) 0.124, ROC-AUC 0.703, recall 0.346.
+- **Actualización (D-30/D-31):** tras la re-ejecución multi-modelo, el modelo recomendado es el
+  regresor de `dias_vs_promesa` **calibrado** a P(tarde) (`artifacts/modelo_riesgo_p1.joblib`):
+  ROC-AUC 0.742, PR-AUC 0.132, recall hasta ~0.92. Auditoría de fuga OK (`tasa_vendedor` ~5%).
+  Detalle en `reports/etapa4_modelado_resultados.md`. El antiguo `modelo_p1.joblib` se retiró.
 - La evaluación final formal y la selección definitiva quedan para HU-12 (Etapa 6).
 
 ---
