@@ -1340,6 +1340,54 @@ No incorporar clustering al MVP. Queda documentado como linea experimental futur
 
 ---
 
+### D-38 — Unión Fase 1 + Fase 2 en el producto "Promesa inteligente + escudo de riesgo"
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Machine Learning Engineer (Wessin, Nassim), sobre la propuesta acordada con el PO
+
+**Contexto:**
+El equipo quedó con dos modelos complementarios de P1: el **motor** de Fase 2 (regresión de
+`dias_entrega_real` + políticas de promesa P80/P90/P95, D-33 a D-36, Harrison) y el **escudo**
+de Fase 1 (P(entrega tarde) calibrada, D-31). La propuesta conjunta ("la regresión fija la
+promesa; el clasificador la defiende") requería integrarlos en un solo producto reproducible,
+ligados por la identidad `dias_vs_promesa = dias_entrega_real − dias_prometidos`.
+
+**Decisión:**
+Se crea `src/models/producto_promesa_riesgo.py`, que entrena el motor (Random Forest de Chat E),
+calcula márgenes SOLO en `val`, simula promesas, aplica el escudo y evalúa en `test` una sola vez:
+- **Promesa:** P90 confirma su dominancia (cumplimiento 96.7% con promesa promedio 17.9 días vs
+  94.3% / 19.1 días de la promesa actual): más confiable Y más corta. La política mixta por riesgo
+  (P80/P95 según bandera) queda dominada por P90 y se documenta como experimento.
+- **Hallazgo de la unión:** el escudo v1 (calibrado a la promesa VIGENTE) **no transfiere** a la
+  promesa nueva (captura 48.6% de sus fallos residuales alertando 64%: anti-señal). Se añade el
+  **escudo v2**, reentrenado contra `promesa_P90` (mismas 16 features [t0], misma familia XGBoost):
+  captura ~48% de los fallos alertando solo ~35% (lift ≈1.4×). Producto final: promesa P90 (motor)
+  + escudo v2 defendiéndola + escudo v1 vigilando la promesa vigente durante la transición.
+- **Datos con degradación controlada:** si `orders_fase2_regresion_rolling.csv` no está disponible
+  (no se versiona), el motor usa el bloque `M0_base_sin_rolling` (2º de Chat E, Δ MAE val ≈0.04)
+  sobre `orders_features.csv`, sin alterar la selección de D-35.
+- Artefactos: `artifacts/producto_promesa_riesgo.joblib`, `reports/producto_promesa_riesgo.md`
+  (+ métricas JSON y `reports/figures_producto_promesa_riesgo/`).
+
+**Alternativas consideradas:**
+- Mantener los dos modelos separados — descartado: el valor de negocio (promesa honesta defendida)
+  exige operarlos juntos y el hallazgo v1→v2 solo emerge al unirlos.
+- Usar el escudo v1 como defensa de la promesa nueva — descartado con datos: no transfiere.
+- Política mixta por riesgo como promesa por defecto — descartada por dominancia de P90; queda
+  documentada para revisión con costos reales.
+
+**Consecuencias:**
+- Positivas: un solo producto end-to-end con evidencia en `test`; el escudo v2 hace operativa la
+  promesa nueva; reutiliza el código de Fase 2 sin cambiar su selección.
+- Negativas o trade-offs: el target del escudo v2 usa predicciones in-sample del motor en `train`
+  (evaluación en `test` sigue siendo honesta); calibración fina del v2, punto de operación con el
+  PO y costos reales quedan para la Etapa 6.
+
+**Etapa asociada:** Fase 2 / preparación de la Etapa 6
+
+---
+
 *Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
 planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
 D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
@@ -1350,5 +1398,6 @@ mejora de confiabilidad post-Sprint 1 (modelo de regresión calibrado; las featu
 [t0] derivadas no superan el techo por el régimen R-14); D-33 a D-37 a la Fase 2
 de regresión de duración (framing, cierre del MVP, Random Forest, política P90 y
 clustering no incorporado; registradas en la rama `Harrison` como D-30 a D-34 y
-renumeradas al integrarse). Nuevas decisiones se
+renumeradas al integrarse); D-38 a la unión de ambas fases en el producto
+"Promesa inteligente + escudo de riesgo". Nuevas decisiones se
 agregarán durante la ejecución del proyecto.*
