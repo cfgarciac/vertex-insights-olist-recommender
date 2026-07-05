@@ -24,9 +24,15 @@ import plotly.graph_objects as go
 import requests
 import streamlit as st
 
-from src.dashboard import scoring
+import sys
 
 ROOT = Path(__file__).resolve().parents[2]
+# streamlit run ejecuta el script con src/dashboard/ en sys.path (no la raiz):
+# se agrega la raiz para poder importar el paquete src.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from src.dashboard import scoring  # noqa: E402
 # 127.0.0.1 y no localhost: en Windows, localhost intenta IPv6 primero (~2 s de
 # penalidad por conexion); con IP directa + sesion keep-alive el p50 es ~30 ms.
 API_URL = os.environ.get("API_URL", "http://127.0.0.1:8000")
