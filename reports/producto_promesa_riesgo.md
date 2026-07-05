@@ -2,7 +2,7 @@
 
 ## Vertex Insights — unión Fase 1 (escudo) + Fase 2 (motor)
 
-**Generado:** 2026-07-02 23:24  
+**Generado:** 2026-07-05 10:48  
 **Motor:** random_forest · bloque `M0_base_sin_rolling` (fallback sin rolling: CSV de Fase 2 no disponible; Δ MAE val ≈ 0.04 vs bloque ganador)  
 **Escudo:** `artifacts/modelo_riesgo_p1.joblib` @ `recall_obj_70`  
 **Política recomendada:** P90 (D-36) · **Unión:** política mixta (P80 sin bandera / P95 con bandera)

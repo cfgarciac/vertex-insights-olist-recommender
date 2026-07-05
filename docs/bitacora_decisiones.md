@@ -1388,6 +1388,65 @@ calcula márgenes SOLO en `val`, simula promesas, aplica el escudo y evalúa en 
 
 ---
 
+### D-39 — Arquitectura de despliegue MLOps: orden API→Docker→dashboard→monitoreo y contrato del request
+
+**Fecha:** 2026-07-05
+**Estado:** Propuesta (pendiente de planning con el equipo)
+**Responsable:** Machine Learning Engineer (Wessin, Nassim), en respuesta a la propuesta del Scrum Master
+
+**Contexto:**
+Con el producto D-38 terminado, el SM propuso iniciar el despliegue MLOps con 3 etapas:
+1º monitoreo de data drift (KS/PSI/Chi² en `model_monitoring.py`), 2º dashboard Streamlit
+completo, 3º API FastAPI + Docker con "evaluación y selección de variables (no necesariamente
+todas con las que fue entrenado)", y compartió su guía de proyectos ML (Fase 6 = despliegue,
+Fase 7 = monitoreo, Fase 8 = calidad). Se evaluó la propuesta contra la guía, el backlog
+(HU-12..16) y el estado real del repo (Dockerfile placeholder; sin código de API/dashboard/
+monitoreo; deps de serving solo en `requirements-dev.txt`; `.joblib` gitignored).
+
+**Decisión:**
+Se adopta la arquitectura documentada en `docs/arquitectura_despliegue.md`:
+- **Orden corregido:** Etapa 6 (congelar umbral/política con el PO) → contrato + lookups →
+  API FastAPI (HU-13) → Docker (HU-14) → dashboard (HU-15) → monitoreo (HU-16) → tests/CI.
+  Razones: es el orden de la propia guía del SM (F6→F7→F8) y del backlog (HU-13/14/15
+  prioridad Alta antes que HU-16 Media); el monitoreo vigila requests logueados por la API
+  (sin API se construye dos veces); HU-15 exige conexión funcional con la API; R-02 marca el
+  monitoreo como lo simplificable. Concesión: el baseline de drift (solo depende del train)
+  se adelanta en paralelo desde la Fase 1.
+- **"Selección de variables" se re-encuadra como contrato del request:** el modelo está
+  entrenado (motor `M0_base_sin_rolling` = 15 features, verificado en el artefacto; escudo =
+  16 [t0]) y un pipeline serializado falla si falta una columna — quitar features implicaría
+  reentrenar e invalidar métricas/márgenes. El cliente envía ~7 campos y el servidor deriva
+  el resto con lookups estáticos horneados a fecha de corte (catálogo, geo, stats de vendedor
+  point-in-time), que hoy no existen y son el trabajo real de la Etapa 7.
+- **Salvaguardas obligatorias:** pins de versiones iguales al venv de entrenamiento; `src/`
+  importable en el contenedor (el unpickle referencia `build_preprocessor`) + smoke test;
+  test de contrato contra las listas del joblib; política de faltantes flaggeada; logging
+  JSONL de cada request (puente API→monitoreo); ground truth diferido ~30d como vigilante de
+  R-14 (bias motor test +3.17d); fixture sintético para CI; escalación 1º recalibrar márgenes,
+  2º reentrenar con re-ventaneo.
+- Cinco decisiones quedan abiertas para el PO/equipo (escudo v1/v2, dashboard híbrido,
+  lookups estáticos, demo de drift en vivo, disparadores de reentrenamiento).
+
+**Alternativas consideradas:**
+- Orden del SM (drift→dashboard→API) — descartado: contradice su guía, el backlog y las
+  dependencias técnicas; pondría primero el componente sacrificable según R-02.
+- Servir con un subconjunto de variables — descartado: exige reentrenar (reabre Etapa 5).
+- SQLite para logs de inferencia — descartado por simplicidad (JSONL append-only, cero deps).
+- `model_monitoring.py` suelto — se prefiere `src/monitoring/` por la convención de paquetes
+  del repo; equivalente funcional, se confirma en planning.
+
+**Consecuencias:**
+- Positivas: roadmap ejecutable alineado con backlog y tags (V1.6.0/V1.7.0); el rigor pedido
+  por el SM se conserva donde corresponde (contrato, monitoreo con drift inducido); mínimo
+  viable definido si R-02 se materializa.
+- Negativas o trade-offs: la Etapa 7 carga el trabajo real de los lookups (no estaba explícito
+  en el backlog); el monitoreo con etiquetas diferidas solo puede demostrarse en producción
+  simulada (replay del test), no con tráfico real.
+
+**Etapa asociada:** Etapas 6–8 (despliegue y monitoreo)
+
+---
+
 *Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
 planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
 D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
@@ -1399,5 +1458,6 @@ mejora de confiabilidad post-Sprint 1 (modelo de regresión calibrado; las featu
 de regresión de duración (framing, cierre del MVP, Random Forest, política P90 y
 clustering no incorporado; registradas en la rama `Harrison` como D-30 a D-34 y
 renumeradas al integrarse); D-38 a la unión de ambas fases en el producto
-"Promesa inteligente + escudo de riesgo". Nuevas decisiones se
-agregarán durante la ejecución del proyecto.*
+"Promesa inteligente + escudo de riesgo"; D-39 a la arquitectura de despliegue
+MLOps de las Etapas 6–8 (orden API→Docker→dashboard→monitoreo y contrato del
+request). Nuevas decisiones se agregarán durante la ejecución del proyecto.*
