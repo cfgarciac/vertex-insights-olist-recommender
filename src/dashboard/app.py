@@ -337,6 +337,17 @@ with tab_drift:
         if n_sev:
             st.error(f"{n_sev} feature(s) con PSI > 0.25 → aplicar runbook R-14 "
                      "(1º recalibrar márgenes, 2º reentrenar). Ver docs/estrategia_monitoreo.md.", icon="🚨")
+        st.info(
+            "**Cómo leer este drift (producción simulada):** el baseline es el train completo "
+            "(sep 2016 → abr 2018, 12 meses) y la producción simulada es el período de test "
+            "(jun–ago 2018, 3 meses). Por eso `mes_compra` sale severo (estacionalidad de la "
+            "ventana, no fallo del modelo) y `dias_prometidos`/`flete_total` reflejan el **drift "
+            "real de régimen R-14** documentado (Olist acortó promesas). Las barras grises "
+            "(`derivada`) son features imputadas por lookup y se excluyen del veredicto. "
+            "**La decisión de actuar no la da este PSI solo**: se cruza con el cumplimiento "
+            "realizado de abajo — si sigue ≥95%, los márgenes P90 están absorbiendo el drift.",
+            icon="📖",
+        )
 
         fig = px.bar(tabla, x="psi", y="feature", orientation="h", color="severidad",
                      color_discrete_map=sev_color,
