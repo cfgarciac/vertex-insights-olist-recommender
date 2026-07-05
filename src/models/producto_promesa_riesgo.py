@@ -101,6 +101,12 @@ def cargar_datos() -> tuple[pd.DataFrame, str]:
     El df incluye: soporte (order_id, split, ts, ruta_estado, customer_state),
     target del motor, promesa actual y las features de motor y escudo.
     """
+    if not DATA_BASE.exists():
+        raise FileNotFoundError(
+            f"No se encontró {DATA_BASE}. Este CSV no se versiona: genera la tabla con "
+            "`python -m src.features.build_dataset --input <orders_consolidated.csv> "
+            f"--output {DATA_BASE}` o cópiala del drive del equipo a data/processed/."
+        )
     base = pd.read_csv(DATA_BASE, parse_dates=["order_purchase_timestamp"])
     faltan = {TARGET, "dias_prometidos", "split", "order_id"} - set(base.columns)
     if faltan:
@@ -156,6 +162,11 @@ def predecir_y_prometer(df: pd.DataFrame, modelo, features: list[str]) -> tuple[
 # --------------------------------------------------------------------------- #
 def aplicar_escudo(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     """Añade P(tarde) calibrada y bandera de riesgo del escudo (D-31)."""
+    if not ESCUDO_ARTIFACT.exists():
+        raise FileNotFoundError(
+            f"No se encontró {ESCUDO_ARTIFACT}. Los artefactos no se versionan: "
+            "genéralo primero con `python -m src.models.train_multimodelo` (~8 min)."
+        )
     bundle = joblib.load(ESCUDO_ARTIFACT)
     x_cols = bundle["numeric_features"] + bundle["categorical_features"]
     ev_f1.assert_sin_features_post(x_cols)  # candado Fase 1 (R-12)

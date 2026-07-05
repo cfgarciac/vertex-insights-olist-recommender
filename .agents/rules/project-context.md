@@ -156,10 +156,9 @@ PENDIENTE (Chat 2) — Project Charter + veredicto narrativo §7.3
 
 ## 9. Mapa de archivos clave
 
-> **Consolidación de carpetas (acción del equipo):** las reglas del agente deben vivir en
-> UNA sola carpeta, `.agents/rules/`. Hoy `context.md` está en `.agent/` (singular). Mover
-> con: `git mv .agent/rules/context.md .agents/rules/context.md` y borrar la carpeta vacía
-> `.agent/`. El puntero en `AGENTS.md` ya quedó corregido a `.agents/rules/context.md`.
+> **Consolidación de carpetas (hecha):** las reglas del agente viven en UNA sola carpeta,
+> `.agents/rules/` (`context.md` y `project-context.md` ya están ahí; la carpeta `.agent/`
+> singular ya no existe). El puntero en `AGENTS.md` apunta a `.agents/rules/context.md`.
 
 ### En `dva_olist` (local, NO GitHub)
 - `Bitacora_Maestra_Olist_v0.11.md` — índice + decisiones de una línea

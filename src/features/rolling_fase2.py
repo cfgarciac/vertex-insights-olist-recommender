@@ -32,10 +32,8 @@ DEFAULT_OUTPUT = (
     PROJECT_ROOT / "data" / "processed" / "orders_fase2_regresion_rolling.csv"
 )
 DEFAULT_REPORT = PROJECT_ROOT / "reports" / "fase2_rolling_features.md"
-DEFAULT_INPUT_DIR = Path(
-    r"C:\Users\LENOVO\Documents\Cursos\Soy Henry\PF\proyecto"
-    r"\MLops_Pipeline_VERTEX\OLIST DATASETS"
-)
+# Default portable (relativo al repo); si los crudos viven en otra ruta, usar --input-dir.
+DEFAULT_INPUT_DIR = PROJECT_ROOT / "data" / "raw"
 
 TARGET = "dias_entrega_real"
 PURCHASE_COL = "order_purchase_timestamp"
