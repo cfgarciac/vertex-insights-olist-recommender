@@ -24,8 +24,12 @@ import plotly.graph_objects as go
 import requests
 import streamlit as st
 
+from src.dashboard import scoring
+
 ROOT = Path(__file__).resolve().parents[2]
-API_URL = os.environ.get("API_URL", "http://localhost:8000")
+# 127.0.0.1 y no localhost: en Windows, localhost intenta IPv6 primero (~2 s de
+# penalidad por conexion); con IP directa + sesion keep-alive el p50 es ~30 ms.
+API_URL = os.environ.get("API_URL", "http://127.0.0.1:8000")
 METRICS_JSON = ROOT / "reports" / "producto_promesa_riesgo_metrics.json"
 DRIFT_JSON = ROOT / "monitoring" / "drift_report.json"
 PERFORMANCE_JSON = ROOT / "monitoring" / "performance_report.json"
@@ -51,17 +55,23 @@ def cargar_json(ruta: Path) -> dict | None:
         return json.load(fh)
 
 
+@st.cache_resource
+def sesion_http() -> requests.Session:
+    """Sesion con keep-alive: reutiliza la conexion TCP entre requests."""
+    return requests.Session()
+
+
 @st.cache_data(ttl=30)
 def api_health() -> dict | None:
     try:
-        r = requests.get(f"{API_URL}/health", timeout=3)
+        r = sesion_http().get(f"{API_URL}/health", timeout=3)
         return r.json() if r.status_code == 200 else None
     except requests.RequestException:
         return None
 
 
 def post_api(ruta: str, payload: dict) -> tuple[int, dict]:
-    r = requests.post(f"{API_URL}{ruta}", json=payload, timeout=10)
+    r = sesion_http().post(f"{API_URL}{ruta}", json=payload, timeout=10)
     return r.status_code, r.json()
 
 
@@ -81,8 +91,9 @@ else:
                "`venv/Scripts/uvicorn src.api.main:app` (la pestaña de alertas la necesita; "
                "las analíticas funcionan igual).", icon="⚠️")
 
-tab_alertas, tab_region, tab_metricas, tab_drift = st.tabs(
-    ["🚨 Alertas de riesgo", "🗺️ Promesa por región", "📊 Métricas del modelo", "📈 Drift"]
+tab_alertas, tab_csv, tab_region, tab_metricas, tab_drift = st.tabs(
+    ["🚨 Alertas de riesgo", "📁 Scoring por CSV", "🗺️ Promesa por región",
+     "📊 Métricas del modelo", "📈 Drift"]
 )
 
 # --------------------------------------------------------------------------- #
@@ -156,7 +167,64 @@ with tab_alertas:
                     st.caption("Features derivadas por el servidor: " + ", ".join(f"`{f}`" for f in flags))
 
 # --------------------------------------------------------------------------- #
-# 2. Promesa por región (analítica: metrics JSON)
+# 2. Scoring por CSV (batch, via la API — misma via que el simulador)
+# --------------------------------------------------------------------------- #
+with tab_csv:
+    st.subheader("Puntuar un lote de órdenes desde CSV")
+    st.markdown(
+        "Sube un CSV con las columnas del **contrato** "
+        "([docs/contrato_api.md](https://github.com/cfgarciac/vertex-insights-olist-recommender/blob/developer/docs/contrato_api.md)): "
+        f"obligatorias `{'`, `'.join(scoring.COLUMNAS_OBLIGATORIAS)}`; "
+        "opcionales p. ej. `dias_prometidos` (necesaria para el riesgo), `seller_state`, "
+        "`categoria_principal`. Lo que falte lo deriva el servidor y queda flaggeado."
+    )
+    st.download_button(
+        "⬇️ Descargar plantilla de ejemplo (3 órdenes)",
+        data=scoring.PLANTILLA.to_csv(index=False).encode("utf-8"),
+        file_name="plantilla_scoring_p1.csv", mime="text/csv",
+    )
+    archivo = st.file_uploader("CSV de órdenes", type=["csv"],
+                               help=f"Máximo {scoring.LIMITE_FILAS} filas (el demo puntúa fila a fila por la API).")
+    if archivo is not None:
+        try:
+            lote = pd.read_csv(archivo)
+        except Exception as exc:
+            st.error(f"No se pudo leer el CSV: {exc}")
+            lote = None
+        if lote is not None:
+            problemas = scoring.validar_csv(lote)
+            errores_bloqueantes = [p for p in problemas if not p.startswith("Columnas ignoradas")]
+            for p in problemas:
+                (st.error if p in errores_bloqueantes else st.warning)(p)
+            st.dataframe(lote.head(10), use_container_width=True, hide_index=True)
+            if not errores_bloqueantes:
+                if not salud:
+                    st.error("La API no está disponible: no se puede puntuar el lote.")
+                elif st.button(f"Puntuar {len(lote)} órdenes", type="primary"):
+                    barra = st.progress(0.0, text="Puntuando vía la API…")
+                    resultados = scoring.puntuar_lote(
+                        lote, post_api,
+                        al_progresar=lambda f: barra.progress(f, text=f"Puntuando… {f:.0%}"),
+                    )
+                    barra.empty()
+                    n_err = resultados["error"].notna().sum() if "error" in resultados else 0
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("Órdenes puntuadas", len(resultados) - n_err)
+                    c2.metric("Promesa P90 promedio",
+                              f"{resultados['promesa_P90_dias'].mean():.1f} d")
+                    if "alerta_riesgo" in resultados:
+                        c3.metric("Alertas del escudo", f"{resultados['alerta_riesgo'].mean():.1%}")
+                    if n_err:
+                        c4.metric("Filas con error", int(n_err))
+                    st.dataframe(resultados, use_container_width=True, hide_index=True)
+                    st.download_button(
+                        "⬇️ Descargar resultados (CSV)",
+                        data=resultados.to_csv(index=False).encode("utf-8"),
+                        file_name="resultados_scoring_p1.csv", mime="text/csv",
+                    )
+
+# --------------------------------------------------------------------------- #
+# 3. Promesa por región (analítica: metrics JSON)
 # --------------------------------------------------------------------------- #
 with tab_region:
     st.subheader("Política P90 vs promesa actual por estado (split test)")
