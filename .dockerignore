@@ -1,0 +1,33 @@
+# Contexto de build minimo (HU-14, D-39): solo entra lo que la API necesita.
+# OJO: artifacts/ y monitoring/ NO se excluyen (los COPY del Dockerfile los
+# necesitan aunque git los ignore - gitignored != dockerignored).
+
+venv/
+.git/
+.github/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+data/
+notebooks/
+experiments/
+output/
+reports/
+docs/
+tests/
+scripts/
+logs/
+htmlcov/
+
+.gitignore
+.dockerignore
+*.md
+!README.md
+requirements-dev.txt
+
+# artefactos que la API no usa (el producto ya embebe el escudo)
+artifacts/modelo_multiclase.joblib
+artifacts/modelo_binario.joblib
+artifacts/modelo_regresion.joblib
+artifacts/modelo_riesgo_p1.joblib

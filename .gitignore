@@ -61,3 +61,9 @@ desktop.ini
 # === Logs ===
 *.log
 logs/
+
+# === Serving y monitoreo: derivados regenerables (D-39) ===
+# se regeneran con src/serving/build_lookups.py y src/monitoring/baseline.py;
+# drift_report.json y performance_report.json SI se versionan (evidencia HU-16)
+artifacts/serving/
+monitoring/drift_baseline.json

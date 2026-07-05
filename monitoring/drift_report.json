@@ -1,0 +1,208 @@
+{
+  "generado": "2026-07-05 14:08",
+  "n_predicciones": 3000,
+  "baseline_ventana": {
+    "desde": "2016-09-15 12:16:38",
+    "hasta": "2018-04-15 20:12:35",
+    "n_ordenes": 67529
+  },
+  "resumen": {
+    "features_ok": 9,
+    "features_moderado": 1,
+    "features_severo": 3,
+    "features_derivadas": 3,
+    "veredicto": "DRIFT SEVERO: aplicar runbook R-14"
+  },
+  "features": [
+    {
+      "feature": "dias_prometidos",
+      "tipo": "numerica",
+      "psi": 0.6471,
+      "ks_estadistico": 0.3365,
+      "ks_pvalor": 1.975e-116,
+      "media_produccion": 18.4151,
+      "media_train": 24.5953,
+      "severidad": "severo",
+      "accion": "runbook R-14: 1) recalibrar margenes con datos recientes, 2) reentrenar con re-ventaneo",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "dist_haversine_km",
+      "tipo": "numerica",
+      "psi": 0.9637,
+      "ks_estadistico": 0.2069,
+      "ks_pvalor": 1.109e-70,
+      "media_produccion": 535.382,
+      "media_train": 614.7065,
+      "severidad": "derivada",
+      "accion": "PSI inflado por derivacion de lookup (valores agregados); no cuenta para el veredicto. Exigir el campo en el contrato o regenerar lookups con mayor granularidad.",
+      "pct_derivada_por_lookup": 1.0
+    },
+    {
+      "feature": "ratio_flete",
+      "tipo": "numerica",
+      "psi": 0.0076,
+      "ks_estadistico": 0.0255,
+      "ks_pvalor": 0.1729,
+      "media_produccion": 0.3178,
+      "media_train": 0.3063,
+      "severidad": "ok",
+      "accion": "nada",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "precio_total",
+      "tipo": "numerica",
+      "psi": 0.0088,
+      "ks_estadistico": 0.0447,
+      "ks_pvalor": 0.001071,
+      "media_produccion": 135.7444,
+      "media_train": 135.8888,
+      "severidad": "ok",
+      "accion": "nada",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "flete_total",
+      "tipo": "numerica",
+      "psi": 0.3704,
+      "ks_estadistico": 0.2053,
+      "ks_pvalor": 1.23e-69,
+      "media_produccion": 25.3599,
+      "media_train": 22.2459,
+      "severidad": "severo",
+      "accion": "runbook R-14: 1) recalibrar margenes con datos recientes, 2) reentrenar con re-ventaneo",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "n_items",
+      "tipo": "numerica",
+      "psi": 0.0,
+      "ks_estadistico": 0.0034,
+      "ks_pvalor": 1.0,
+      "media_produccion": 1.1287,
+      "media_train": 1.1421,
+      "severidad": "ok",
+      "accion": "nada",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "peso_total_g",
+      "tipo": "numerica",
+      "psi": 0.0391,
+      "ks_estadistico": 0.0597,
+      "ks_pvalor": 3.052e-06,
+      "media_produccion": 2048.8273,
+      "media_train": 2465.5084,
+      "severidad": "ok",
+      "accion": "nada",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "volumen_total_cm3",
+      "tipo": "numerica",
+      "psi": 0.0318,
+      "ks_estadistico": 0.0639,
+      "ks_pvalor": 4.341e-07,
+      "media_produccion": 15276.2367,
+      "media_train": 18084.4127,
+      "severidad": "ok",
+      "accion": "nada",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "tasa_vendedor",
+      "tipo": "numerica",
+      "psi": 4.6411,
+      "ks_estadistico": 0.4616,
+      "ks_pvalor": 5.143e-321,
+      "media_produccion": 0.0572,
+      "media_train": 0.0654,
+      "severidad": "derivada",
+      "accion": "PSI inflado por derivacion de lookup (valores agregados); no cuenta para el veredicto. Exigir el campo en el contrato o regenerar lookups con mayor granularidad.",
+      "pct_derivada_por_lookup": 1.0
+    },
+    {
+      "feature": "mes_compra",
+      "tipo": "numerica",
+      "psi": 7.0258,
+      "ks_estadistico": 0.5128,
+      "ks_pvalor": 3.626e-321,
+      "media_produccion": 7.316,
+      "media_train": 5.9713,
+      "severidad": "severo",
+      "accion": "runbook R-14: 1) recalibrar margenes con datos recientes, 2) reentrenar con re-ventaneo",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "dia_semana_compra",
+      "tipo": "numerica",
+      "psi": 0.0043,
+      "ks_estadistico": 0.0112,
+      "ks_pvalor": 0.9709,
+      "media_produccion": 2.7973,
+      "media_train": 2.7898,
+      "severidad": "ok",
+      "accion": "nada",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "customer_state",
+      "tipo": "categorica",
+      "psi": 0.0326,
+      "chi2_estadistico": 92.95,
+      "chi2_pvalor": 3.586e-09,
+      "severidad": "ok",
+      "accion": "nada",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "seller_state",
+      "tipo": "categorica",
+      "psi": 0.038,
+      "chi2_estadistico": 280.29,
+      "chi2_pvalor": 1.184e-46,
+      "severidad": "ok",
+      "accion": "nada",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "categoria_principal",
+      "tipo": "categorica",
+      "psi": 0.1658,
+      "chi2_estadistico": 559.71,
+      "chi2_pvalor": 6.29e-99,
+      "severidad": "moderado",
+      "accion": "investigar causa y aumentar frecuencia de monitoreo",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "mismo_estado",
+      "tipo": "categorica",
+      "psi": 0.0239,
+      "chi2_estadistico": 74.69,
+      "chi2_pvalor": 6.034e-17,
+      "severidad": "ok",
+      "accion": "nada",
+      "pct_derivada_por_lookup": 0.0
+    },
+    {
+      "feature": "sin_historial_vendedor",
+      "tipo": "categorica",
+      "psi": 0.864,
+      "chi2_estadistico": 408.49,
+      "chi2_pvalor": 1.984e-89,
+      "severidad": "derivada",
+      "accion": "PSI inflado por derivacion de lookup (valores agregados); no cuenta para el veredicto. Exigir el campo en el contrato o regenerar lookups con mayor granularidad.",
+      "pct_derivada_por_lookup": 1.0
+    }
+  ],
+  "scores": {
+    "psi_pred_dias_vs_target_train": 1.2286,
+    "severidad_score": "severo",
+    "media_pred_dias": 11.17,
+    "media_target_train": 13.82,
+    "tasa_alertas_escudo": 0.348,
+    "tasa_entrega_tarde_train": 0.0903
+  }
+}
