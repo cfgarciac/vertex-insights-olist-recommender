@@ -49,9 +49,9 @@ El proyecto opera con **siete ramas largas**:
 |---|---|
 | `master` | Rama principal. Solo recibe merges desde `developer` al cierre de cada etapa, marcados con tag de versión. |
 | `developer` | Rama de integración. Recibe PRs desde las ramas personales. Todo lo que se entrega para el sprint pasa por aquí. |
-| `Cristian` | Rama personal de Cristian Fernando García Cadena (Scrum Master). |
-| `Harrison` | Rama personal de Harrison Alberto Tutalcha Pame (Product Owner). |
-| `Juan` | Rama personal de Juan Carlos López Solórzano (Data Analyst). |
+| `Cristian` | Rama personal de Cristian Fernando García Cadena (Data Analyst — D-40; antes Scrum Master). |
+| `Harrison` | Rama personal de Harrison Alberto Tutalcha Pame (Analytics Lead — D-40; antes Product Owner). |
+| `Juan` | Rama personal de Juan Carlos López Solórzano (BI Analyst — D-40; antes Data Analyst). |
 | `Amaury` | Rama personal de Oscar Amaury Aguilar Lomas (Data Scientist). |
 | `Nassim` | Rama personal de Nassim Wessin (Machine Learning Engineer). |
 
@@ -117,11 +117,11 @@ Cada rol tiene responsabilidad primaria sobre ciertas subcarpetas del repositori
 | `notebooks/` | Data Analyst y Data Scientist |
 | `src/` | Machine Learning Engineer (despliegue), Data Scientist (modelado), Data Analyst (utilidades de datos) |
 | `tests/` | Quien escribe el código asociado |
-| `docs/` | Scrum Master y Product Owner |
-| `reports/` | Data Analyst |
+| `docs/` | Analytics Lead con apoyo del equipo (D-40; antes SM y PO) |
+| `reports/` | Data Analyst y BI Analyst |
 | `artifacts/` | Data Scientist y Machine Learning Engineer |
-| `.github/` | Scrum Master |
-| `scripts/` | Scrum Master (operaciones del repo) |
+| `.github/` | Machine Learning Engineer (mantiene el CI; D-40, antes SM) |
+| `scripts/` | Machine Learning Engineer (operaciones del repo; D-40, antes SM) |
 
 ---
 
@@ -178,6 +178,10 @@ Donde:
 | V1.7.0 | Etapa 8 | Documentación técnica + monitoreo |
 | V1.8.0 | Etapa 9 | Entrega final |
 
+> Los tags de *patch* (tercer dígito, ej. `V1.0.1`..`V1.0.3`, `V1.3.1`) marcan
+> correcciones o re-ejecuciones dentro de una etapa ya cerrada; no aparecen en la
+> tabla porque se crean según necesidad.
+
 ---
 
-*Documento vivo. Última actualización: cierre de Etapa 1.*
+*Documento vivo. Última actualización: cierre del Sprint 2 (2026-07-05; roles según D-40).*

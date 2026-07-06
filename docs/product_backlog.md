@@ -454,6 +454,17 @@ Sprint 2.
 **Estimación:** M
 **Prioridad:** Alta
 **Etapa asociada:** 5
+**Estado:** Completada (cierre documental retroactivo, 2026-07-05)
+
+**Notas de cierre:**
+
+- La Sprint Review del Sprint 1 se realizó con la presentación ejecutiva al cliente
+  (`Vertex_Insights_Sprint1_Cierre_v6.pptx`, 27 slides con MVP, hallazgos y pivote).
+- Actas de Review y Retrospective documentadas retroactivamente en
+  `docs/sprints/acta-sprint-1.md`; cierre de etapa en `docs/etapas/cierre-etapa-5.md`.
+- Backlog del Sprint 2 priorizado y realineado a P1 (ver encabezado de la sección).
+- El tag `V1.4.0` queda delegado al acto de merge final (PR #28 → developer → master),
+  documentado en `docs/etapas/cierre-sprint-2.md`.
 
 ---
 
@@ -489,6 +500,23 @@ producción.
 **Estimación:** L
 **Prioridad:** Alta
 **Etapa asociada:** 6
+**Estado:** Completada (Etapa 6)
+
+**Notas de cierre:**
+
+- Métricas finales calculadas y auditadas (D-38): escudo ROC-AUC 0.742 / PR-AUC 0.132 /
+  Brier 0.063; motor MAE test 4.62 d; backtesting P80/P90/P95 con P90 dominante
+  (96.70% de cumplimiento, promesa media 17.87 d vs 94.32% / 19.12 d actual).
+- Umbral y política **ratificados en D-41**: P90 + escudo v2 (0.3658) principal,
+  v1 (0.0721, `recall_obj_70`) en transición. Calibración isotónica verificada.
+- Tratamiento R-14 decidido (D-41): sin re-ventaneo; márgenes de validación + monitoreo
+  con runbook y disparadores concretos.
+- Desempeño por región documentado (`reports/producto_promesa_riesgo.md`, tablas por
+  estado con foco N/NE); cold-start cubierto por la política de faltantes del serving
+  (prior global + flag `sin_historial_vendedor`).
+- Documentos creados: `docs/justificacion_modelo.md` y `docs/plan_validacion.md`.
+- Artefacto final serializado: `artifacts/producto_promesa_riesgo.joblib` (~13 MB).
+- Cierre de etapa: `docs/etapas/cierre-etapa-6.md`.
 
 ---
 
@@ -511,6 +539,21 @@ entrega (P1),
 **Estimación:** M
 **Prioridad:** Alta
 **Etapa asociada:** 7
+**Estado:** Completada (Etapa 7)
+
+**Notas de cierre:**
+
+- API implementada en `src/api/` (main.py + schemas.py): `/health` (con versión del
+  modelo y umbrales), `/promise` (motor → promesa P90) y `/predict/delivery-risk`
+  (escudo v2 principal + v1 opcional). Swagger en `/docs`.
+- Pydantic valida el contrato (~7 campos [CLI], `docs/contrato_api.md`); 422/503/500;
+  carga única en lifespan con candado anti-divergencia contrato↔modelo.
+- Capa de serving nueva (`src/serving/`): lookups estáticos point-in-time
+  (`build_lookups.py`) + `feature_builder.py` con política de faltantes flaggeada.
+- Logging JSONL por request (`logs/predictions.jsonl`) — puente hacia HU-16.
+- Verificación: API == modelo directo == evaluación offline D-38 (por order_id);
+  replay de 1.500 órdenes: cumplimiento 96.40% vs 96.70% offline. Tests en
+  `tests/test_api.py` y `tests/test_feature_builder.py`. Commits en PR #28.
 
 ---
 
@@ -531,6 +574,16 @@ entorno.
 **Estimación:** M
 **Prioridad:** Alta
 **Etapa asociada:** 7
+**Estado:** Completada (Etapa 7)
+
+**Notas de cierre:**
+
+- `Dockerfile` real (python:3.11-slim + libgomp1 + pins exactos del venv de
+  entrenamiento) y `.dockerignore`; COPY explícito de `artifacts/` (gitignored ≠
+  dockerignored); healthcheck nativo contra `/health`.
+- Imagen `vertex-olist-api` construida y validada localmente: smoke test de unpickle
+  dentro del contenedor y `/promise` idéntico al venv (pred 19.52 d → promesa 26 d).
+- Comandos de build/run documentados en el README (sección Despliegue).
 
 ---
 
@@ -552,6 +605,19 @@ entrega tardía, las promesas sugeridas y las métricas del modelo, con foco reg
 **Estimación:** M
 **Prioridad:** Alta
 **Etapa asociada:** 7
+**Estado:** Completada (Etapa 7)
+
+**Notas de cierre:**
+
+- Dashboard en `src/dashboard/app.py` con **5 pestañas** (se añadió una sobre el
+  criterio original): alertas de riesgo (simulador vía API), **scoring por CSV**
+  (lote de hasta 500 órdenes con plantilla y descarga, `src/dashboard/scoring.py`),
+  promesa por región (foco N/NE), métricas del modelo y drift (HU-16).
+- Modo híbrido ratificado (D-41): predicción por la API (valida el contrato E2E),
+  analítica leyendo `reports/` y `monitoring/` con `st.cache_data`;
+  `st.cache_resource` para la sesión HTTP keep-alive.
+- Prueba end-to-end realizada: navegador → Streamlit → API (Docker) → modelo.
+  Tests del scoring en `tests/test_scoring.py`.
 
 ---
 
@@ -574,6 +640,21 @@ sistema,
 **Estimación:** M
 **Prioridad:** Media
 **Etapa asociada:** 8
+**Estado:** Completada (Etapa 8)
+
+**Notas de cierre:**
+
+- Monitoreo en `src/monitoring/`: `baseline.py` (referencia del train, corte
+  2018-04-15), `drift.py` (PSI + KS numéricas + Chi² categóricas + score drift, con
+  severidad `derivada` para features de lookup que inflan el PSI), `performance.py`
+  (etiquetas diferidas ~30 d: cumplimiento realizado y sobre-predicción — vigilante
+  R-14) y `simulate_production.py` (replay del test por la API + drift inducido).
+- Pestaña de drift integrada al dashboard con guía de lectura.
+- **Detector validado con drift inducido** (criterio clave): score PSI 1.23 → 1.76,
+  alertas 34.8% → 66.3%, vigilante dispara; en el run normal detecta el drift real
+  R-14 sin falsas alarmas (cumplimiento realizado 96.40%).
+- Estrategia por severidad y runbook documentados en `docs/estrategia_monitoreo.md`.
+- Tests en `tests/test_monitoring.py`; CI en `.github/workflows/ci.yml`.
 
 ---
 
@@ -596,6 +677,18 @@ cualquier evaluador externo.
 **Estimación:** M
 **Prioridad:** Alta
 **Etapa asociada:** 9
+**Estado:** Completada (Etapa 9)
+
+**Notas de cierre:**
+
+- `README.md` reescrito al estado real del producto (P1: promesa inteligente +
+  escudo de riesgo; equipo con roles D-40; instalación, uso y despliegue).
+- `docs/manual_usuario.md` creado: API (Swagger + ejemplos), dashboard (5 pestañas,
+  incl. scoring por CSV) y tablero Power BI (5 páginas), en lenguaje no técnico.
+- `docs/informe_tecnico.md` creado: consolidado problema → datos → features →
+  modelos → unión → despliegue → monitoreo → limitaciones, enlazando la evidencia
+  existente en `reports/` y `docs/` (sin duplicar).
+- Referencias cruzadas verificadas contra los artefactos del repositorio.
 
 ---
 
@@ -617,6 +710,18 @@ Henry,
 **Estimación:** L
 **Prioridad:** Alta
 **Etapa asociada:** 9
+**Estado:** En curso (deck final diseñado; presentación pendiente de la fecha)
+
+**Notas de cierre (parciales):**
+
+- Presentación ejecutiva diseñada: `Vertex_Insights_Sprint2_Final_v1.pptx`
+  (30 slides, 5 expositores × 6 min, estilo del deck v6 del Sprint 1; incluye Gantt
+  final del proyecto y slides del tablero Power BI con espacio para capturas).
+- Demo en vivo preparada: API (Swagger) + dashboard corriendo localmente y en Docker.
+- Cada miembro presenta el bloque que lideró (mapa expositor→slides en
+  `docs/etapas/cierre-sprint-2.md`).
+- Pendientes al día de la presentación: exponer en la fecha establecida y crear el
+  tag `V1.8.0` en `master` tras el merge final.
 
 ---
 
