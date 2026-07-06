@@ -1,0 +1,31 @@
+# CI del Proyecto Final (Fase 8 de la guía, D-39).
+# La suite es 100% sintética (fixtures en tests/conftest.py): no necesita los
+# .csv ni los .joblib gitignored, por eso corre en cualquier clon limpio.
+name: CI
+
+on:
+  push:
+    branches: [master, developer]
+  pull_request:
+    branches: [master, developer]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.11 (misma versión que el venv de entrenamiento, pins D-39)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias (pins exactos de requirements.txt)
+        run: pip install -r requirements.txt
+
+      - name: Compilar módulos (detecta errores de sintaxis)
+        run: python -m compileall src/ -q
+
+      - name: Suite de tests (sintética, sin datos ni artefactos)
+        run: pytest tests/ -v --tb=short

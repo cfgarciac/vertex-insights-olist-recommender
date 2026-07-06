@@ -79,6 +79,60 @@ source venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
+## Despliegue del producto P1 (API + Dashboard + Docker)
+
+El producto de P1 (promesa inteligente + escudo de riesgo, D-38/D-39) se sirve
+con FastAPI y se visualiza con Streamlit. Contrato en
+[docs/contrato_api.md](docs/contrato_api.md); arquitectura en
+[docs/arquitectura_despliegue.md](docs/arquitectura_despliegue.md).
+
+### Prerrequisitos (una sola vez)
+
+Los artefactos no se versionan; hay que generarlos localmente:
+
+```bash
+python -m src.features.build_dataset               # requiere data/raw (o pedir orders_features.csv al equipo)
+python -m src.models.train_multimodelo             # entrena el escudo (modelo_riesgo_p1.joblib)
+python -m src.models.producto_promesa_riesgo       # une motor + escudo (producto_promesa_riesgo.joblib)
+python -m src.serving.build_lookups                # hornea artifacts/serving/ (lookups del contrato)
+python -m src.monitoring.baseline                  # baseline de drift (monitoring/)
+```
+
+### API (HU-13)
+
+```bash
+venv/Scripts/uvicorn src.api.main:app --reload     # Windows (Linux: uvicorn src.api.main:app)
+# Swagger interactivo: http://localhost:8000/docs
+curl http://localhost:8000/health
+```
+
+### Dashboard (HU-15) — necesita la API viva para la pestaña de alertas
+
+```bash
+venv/Scripts/streamlit run src/dashboard/app.py    # http://localhost:8501
+```
+
+### Docker (HU-14)
+
+```bash
+docker build -t vertex-olist-api .
+docker run --rm -p 8000:8000 vertex-olist-api
+# smoke test del unpickle dentro del contenedor:
+docker run --rm vertex-olist-api python -c "import joblib; joblib.load('artifacts/producto_promesa_riesgo.joblib'); print('OK')"
+```
+
+### Monitoreo (HU-16) — ver [docs/estrategia_monitoreo.md](docs/estrategia_monitoreo.md)
+
+```bash
+python -m src.monitoring.simulate_production       # producción simulada (replay del test)
+python -m src.monitoring.drift                     # PSI/KS/Chi² → monitoring/drift_report.json
+python -m src.monitoring.performance               # etiquetas diferidas (vigilante R-14)
+python -m src.monitoring.simulate_production --drift todo   # demo: el detector dispara
+```
+
+> Política P90 y umbrales del escudo **provisionales** (artefacto D-38),
+> pendientes de confirmación del PO — Fase 0 del roadmap de despliegue.
+
 ## Estado del proyecto
 
 Versión actual: **V1.0.0** — Estructura inicial del repositorio.

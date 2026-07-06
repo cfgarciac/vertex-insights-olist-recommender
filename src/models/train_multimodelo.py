@@ -94,6 +94,12 @@ X_COLS = NUMERIC_FEATURES + CATEGORICAL_FEATURES
 # Carga
 # --------------------------------------------------------------------------- #
 def cargar(path: Path):
+    if not Path(path).exists():
+        raise FileNotFoundError(
+            f"No se encontró {path}. Este CSV no se versiona: genera la tabla con "
+            "`python -m src.features.build_dataset --input <orders_consolidated.csv> "
+            f"--output {path}` o cópiala del drive del equipo a data/processed/."
+        )
     df = pd.read_csv(path)
     requeridas = {CLASSIFICATION_TARGET, MULTICLASS_TARGET, REG_TARGET, "split", *X_COLS}
     faltan = requeridas - set(df.columns)

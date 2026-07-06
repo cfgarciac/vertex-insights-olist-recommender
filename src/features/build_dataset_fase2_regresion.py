@@ -31,10 +31,8 @@ import pandas as pd
 # 0. Contrato de columnas y rutas
 # --------------------------------------------------------------------------- #
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_INPUT_DIR = Path(
-    r"C:\Users\LENOVO\Documents\Cursos\Soy Henry\PF\proyecto"
-    r"\MLops_Pipeline_VERTEX\OLIST DATASETS"
-)
+# Default portable (relativo al repo); si los crudos viven en otra ruta, usar --input-dir.
+DEFAULT_INPUT_DIR = PROJECT_ROOT / "data" / "raw"
 DEFAULT_OUTPUT = PROJECT_ROOT / "data" / "processed" / "orders_fase2_regresion.csv"
 
 TARGET = "dias_entrega_real"

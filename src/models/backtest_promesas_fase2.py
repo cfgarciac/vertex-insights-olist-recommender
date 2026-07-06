@@ -40,10 +40,8 @@ POLICY_QUANTILES = {"P80": 0.80, "P90": 0.90, "P95": 0.95}
 MIN_ROUTE_N = 80
 
 DEFAULT_DATA = ROOT / "data" / "processed" / "orders_fase2_regresion_rolling.csv"
-DEFAULT_INPUT_DIR = Path(
-    r"C:\Users\LENOVO\Documents\Cursos\Soy Henry\PF\proyecto"
-    r"\MLops_Pipeline_VERTEX\OLIST DATASETS"
-)
+# Default portable (relativo al repo); si los crudos viven en otra ruta, usar --input-dir.
+DEFAULT_INPUT_DIR = ROOT / "data" / "raw"
 DEFAULT_REPORT = ROOT / "reports" / "fase2_backtesting_promesas.md"
 DEFAULT_METRICS = ROOT / "reports" / "fase2_backtesting_metrics.json"
 

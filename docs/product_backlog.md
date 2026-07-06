@@ -459,6 +459,11 @@ Sprint 2.
 
 ## Historias del Sprint 2
 
+> **Realineación a P1 (post-pivote D-16 y unión D-38):** estas historias se redactaron
+> originalmente para el recomendador item-to-item. Aquí se actualizan al objetivo vigente —
+> **predicción de entrega tardía + promesa inteligente** (motor de regresión de Fase 2 +
+> escudo de riesgo de Fase 1, ver `producto_promesa_riesgo.py` y el informe de la unión).
+
 ### HU-12 — Realizar la evaluación final y seleccionar el modelo
 
 **Como** Data Scientist,
@@ -469,13 +474,17 @@ producción.
 
 **Criterios de aceptación:**
 
-- Métricas finales calculadas: Precision@K, Recall@K, MAP@K, cobertura,
-  diversidad.
-- Análisis de sensibilidad a K y comportamiento por categoría.
-- Análisis de cold-start documentado.
-- Documento de justificación del modelo elegido (`justificacion_modelo.md`).
-- Plan de validación documentado (`plan_validacion.md`).
-- Artefactos finales serializados.
+- Métricas finales de P1 calculadas: ROC-AUC, PR-AUC, recall/precision a un
+  umbral y calibración (Brier) para el escudo de riesgo; MAE/RMSE y backtesting
+  de cumplimiento (P80/P90/P95) para el motor de promesa.
+- Calibración formal de las probabilidades y elección definitiva del umbral /
+  punto de operación con el PO (diferido de D-28/D-31).
+- Tratamiento del cambio de régimen R-14 (re-ventaneo / segmentación temporal)
+  evaluado (diferido de D-29/D-32).
+- Desempeño por región (foco Norte/Nordeste) y análisis de cold-start documentado.
+- Documento de justificación del modelo elegido (`justificacion_modelo.md`) y
+  plan de validación (`plan_validacion.md`).
+- Artefactos finales serializados (`producto_promesa_riesgo.joblib`).
 
 **Estimación:** L
 **Prioridad:** Alta
@@ -486,17 +495,17 @@ producción.
 ### HU-13 — Desplegar la API REST con FastAPI
 
 **Como** Machine Learning Engineer,
-**quiero** construir y desplegar la API REST del sistema de
-recomendación,
+**quiero** construir y desplegar la API REST del sistema de predicción de
+entrega (P1),
 **para** que el modelo sea consumible vía HTTP por cualquier cliente.
 
 **Criterios de aceptación:**
 
-- Endpoints implementados: `/health`, `/recommend/similar`,
-  `/recommend/complementary`.
+- Endpoints implementados: `/health`, `/predict/delivery-risk` (P(tarde) +
+  bandera de riesgo del escudo) y `/promise` (ETA y promesa sugerida P80/P90 del motor).
 - Validación de entradas con Pydantic.
 - Manejo de errores con códigos HTTP apropiados.
-- Carga única de artefactos al iniciar la aplicación.
+- Carga única de artefactos al iniciar la aplicación (`producto_promesa_riesgo.joblib`).
 - Documentación Swagger UI disponible en `/docs`.
 
 **Estimación:** M
@@ -528,14 +537,14 @@ entorno.
 ### HU-15 — Construir el dashboard interactivo
 
 **Como** equipo,
-**quiero** un dashboard interactivo en Streamlit para visualizar las
-recomendaciones, las métricas y el comportamiento del catálogo,
+**quiero** un dashboard interactivo en Streamlit para visualizar el riesgo de
+entrega tardía, las promesas sugeridas y las métricas del modelo, con foco regional,
 **para** comunicar valor a stakeholders no técnicos.
 
 **Criterios de aceptación:**
 
-- Dashboard con pestañas: predicción, exploración del catálogo,
-  métricas del sistema.
+- Dashboard con pestañas: alertas de riesgo, promesa por ruta/región (foco N/NE),
+  métricas del modelo.
 - Conexión funcional con la API REST.
 - Cache de artefactos para minimizar latencia.
 - Pruebas end-to-end del flujo completo realizadas.

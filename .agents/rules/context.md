@@ -94,14 +94,15 @@ Los archivos CSV del dataset **NO están en el repositorio** (son muy pesados y 
 
 | Dato | Valor |
 |---|---|
-| **Ubicación local de los CSV** | `C:\Users\LENOVO\Documents\Cursos\Soy Henry\PF\proyecto\MLops_Pipeline_VERTEX\OLIST DATASETS` |
+| **Ubicación local de los CSV** | `data/raw/` dentro del repo (convención del equipo; varía por integrante — no se versiona) |
 | **CSV consolidado requerido** | `orders_consolidated.csv` (112,650 filas, una fila por ítem de pedido) |
 | **Fuente original** | [Brazilian E-commerce Dataset by Olist en Kaggle](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) |
 
 > [!WARNING]
-> Si necesitas ejecutar el pipeline de datos (`build_dataset.py`), debes pasarle la ruta al CSV con `--input`:
+> Si necesitas ejecutar el pipeline de datos (`build_dataset.py`), coloca el CSV en `data/raw/`
+> o pasa su ruta con `--input`:
 > ```powershell
-> python -m src.features.build_dataset --input "C:\Users\LENOVO\...\orders_consolidated.csv"
+> python -m src.features.build_dataset --input "data\raw\orders_consolidated.csv"
 > ```
 
 ### 2.4 Qué ya está creado y no necesitas hacer
