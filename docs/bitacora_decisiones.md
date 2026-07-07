@@ -1391,7 +1391,7 @@ calcula márgenes SOLO en `val`, simula promesas, aplica el escudo y evalúa en 
 ### D-39 — Arquitectura de despliegue MLOps: orden API→Docker→dashboard→monitoreo y contrato del request
 
 **Fecha:** 2026-07-05
-**Estado:** Propuesta (pendiente de planning con el equipo)
+**Estado:** Aceptada (implementada el 2026-07-05; ver D-41 para las decisiones que dejaba abiertas)
 **Responsable:** Machine Learning Engineer (Wessin, Nassim), en respuesta a la propuesta del Scrum Master
 
 **Contexto:**
@@ -1447,6 +1447,103 @@ Se adopta la arquitectura documentada en `docs/arquitectura_despliegue.md`:
 
 ---
 
+### D-40 — Cambio de roles del equipo: Analytics Lead y reasignación de análisis
+
+**Fecha:** 2026-07-05
+**Estado:** Aceptada
+**Responsable:** Equipo completo, por indicación del tutor del proyecto
+
+**Contexto:**
+El tutor del proyecto indicó reestructurar los roles del equipo para la fase final:
+los roles de gestión Scrum (Product Owner y Scrum Master) dejan de existir como
+títulos y se reemplazan por roles funcionales de analítica, más representativos del
+trabajo real de cada integrante de cara al cliente. D-04 fijó la composición
+original; esta decisión la actualiza sin reescribirla.
+
+**Decisión:**
+Nueva composición de roles vigente desde el cierre del Sprint 2:
+
+| Integrante | Rol anterior (D-04) | Rol vigente |
+|---|---|---|
+| Tutalcha Pame, Harrison Alberto | Product Owner | **Analytics Lead** |
+| García Cadena, Cristian Fernando | Scrum Master | **Data Analyst** |
+| López Solórzano, Juan Carlos | Data Analyst | **BI Analyst** (tablero Power BI) |
+| Aguilar Lomas, Oscar Amaury | Data Scientist | Data Scientist (sin cambio) |
+| Wessin, Nassim | Machine Learning Engineer | Machine Learning Engineer (sin cambio) |
+
+- Juan Carlos pasa a **BI Analyst** para evitar la colisión de títulos con Cristian
+  y reflejar su entregable principal (tablero Power BI de 5 páginas).
+- Responsabilidades de gestión que quedaban en SM/PO: `docs/` pasa a responsabilidad
+  del Analytics Lead con apoyo del equipo; `.github/` y `scripts/` pasan al MLE
+  (quien mantiene el CI). Se actualizan `README.md`, `docs/convenciones.md` y
+  `.agents/rules/context.md`.
+
+**Alternativas consideradas:**
+- Mantener ambos Data Analyst (Cristian y Juan Carlos) — descartado: títulos
+  duplicados confunden al cliente en la presentación final.
+- Conservar los títulos Scrum junto a los nuevos — descartado: la presentación es
+  ante la "junta directiva" del cliente; los roles funcionales comunican mejor.
+
+**Consecuencias:**
+- Positivas: presentación final con roles auto-explicativos; cada integrante expone
+  el bloque que construyó.
+- Negativas o trade-offs: los documentos históricos (cierres de etapas 0–4, D-04)
+  conservan los títulos antiguos — se leen con su fecha; no se reescribe el pasado.
+
+**Etapa asociada:** Cierre del Sprint 2 / preparación de la entrega final
+
+---
+
+### D-41 — Cierre de la Etapa 6: umbrales y política ratificados, postura R-14
+
+**Fecha:** 2026-07-05
+**Estado:** Aceptada
+**Responsable:** Equipo (ratificación de las decisiones diferidas por D-28, D-31, D-36 y D-39)
+
+**Contexto:**
+D-28 y D-31 difirieron la elección formal del umbral del escudo a la Etapa 6; D-36
+dejó P90 como candidata preliminar; D-39 dejó 5 decisiones abiertas de despliegue.
+Con la evidencia de test (D-38), la validación E2E del serving y la producción
+simulada con drift inducido, el equipo ratifica los valores para la entrega final.
+
+**Decisión:**
+1. **Política de promesa: P90** (margen 5.84 d sobre la predicción del motor).
+   Evidencia: domina a la promesa actual en ambas dimensiones (96.70% de
+   cumplimiento con promesa media de 17.87 d vs 94.32% / 19.12 d).
+2. **Escudo v2 como principal** (umbral **0.3658**): defiende la promesa P90
+   capturando 47.6% de los incumplimientos residuales alertando 34.7% (lift 1.4×).
+   **Escudo v1 en transición** (umbral **0.0721**, punto `recall_obj_70`) mientras
+   opere la promesa vigente de Olist.
+3. **Postura R-14: sin re-ventaneo por ahora.** Los márgenes calculados en
+   validación (régimen reciente) absorben la sobre-predicción del motor
+   (+3.17 d test; +2.90 d en producción simulada, cumplimiento realizado 96.40%).
+   Mitigación: monitoreo continuo con runbook escalonado (1º recalibrar márgenes,
+   2º reentrenar) y disparadores concretos (PSI > 0.25 en ≥2 features no-derivadas,
+   cumplimiento < 95% en 30 días, o sobre-predicción < +1.6 d o negativa).
+4. **Decisiones abiertas de D-39 ratificadas:** dashboard híbrido (predicción vía
+   API, analítica local) · lookups estáticos horneados a fecha de corte · demo del
+   drift inducido en la presentación final · disparadores de reentrenamiento del
+   punto 3.
+5. Documentación de soporte creada: `docs/justificacion_modelo.md` y
+   `docs/plan_validacion.md` (requisitos de HU-12).
+
+**Alternativas consideradas:**
+- Re-ventanear el train antes de entregar — descartado: reabre el modelado a días
+  de la entrega y la evidencia muestra que los márgenes absorben el sesgo.
+- Dejar los umbrales como "provisionales" en la entrega — descartado: la
+  presentación final entrega LA solución; la trazabilidad queda en `/health` y en
+  esta bitácora, y ajustar un umbral no requiere refactorización.
+
+**Consecuencias:**
+- Positivas: HU-12 cierra con todos sus criterios; el producto se presenta con
+  valores ratificados y evidencia completa.
+- Negativas o trade-offs: la política P90 podrá revisarse cuando Olist comparta
+  costos comerciales reales (R-15); el runbook R-14 queda como compromiso operativo.
+
+**Etapa asociada:** Etapa 6 (evaluación final y selección)
+
+---
+
 *Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
 planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
 D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
@@ -1460,4 +1557,8 @@ clustering no incorporado; registradas en la rama `Harrison` como D-30 a D-34 y
 renumeradas al integrarse); D-38 a la unión de ambas fases en el producto
 "Promesa inteligente + escudo de riesgo"; D-39 a la arquitectura de despliegue
 MLOps de las Etapas 6–8 (orden API→Docker→dashboard→monitoreo y contrato del
-request). Nuevas decisiones se agregarán durante la ejecución del proyecto.*
+request); D-40 al cambio de roles del equipo (Analytics Lead / Data Analyst /
+BI Analyst, por indicación del tutor); D-41 al cierre de la Etapa 6 con la
+ratificación de la política P90, los umbrales del escudo (v2 = 0.3658 principal,
+v1 = 0.0721 en transición) y la postura ante R-14 (monitoreo con runbook, sin
+re-ventaneo). Con D-41 se cierra el ciclo de decisiones del Sprint 2.*

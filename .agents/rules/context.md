@@ -36,11 +36,11 @@
 
 | Integrante | Rol | Rama personal |
 |---|---|---|
-| Tutalcha Pame, Harrison Alberto | Product Owner | `Harrison` ← **tu rama** |
-| García Cadena, Cristian Fernando | Scrum Master | `Cristian` |
+| Tutalcha Pame, Harrison Alberto | Analytics Lead (D-40; antes Product Owner) | `Harrison` ← **tu rama** |
+| García Cadena, Cristian Fernando | Data Analyst (D-40; antes Scrum Master) | `Cristian` |
 | Wessin, Nassim | Machine Learning Engineer | `Nassim` |
 | Aguilar Lomas, Oscar Amaury | Data Scientist | `Amaury` |
-| López Solórzano, Juan Carlos | Data Analyst | `Juan` |
+| López Solórzano, Juan Carlos | BI Analyst (D-40; antes Data Analyst) | `Juan` |
 
 > [!IMPORTANT]
 > **Pivote P1:** Aunque el nombre del repositorio dice "Recommender", el equipo pivoteó (decisión D-16) hacia un **clasificador de entrega tardía** (`entrega_tarde`). Todo el código implementado corresponde a este enfoque (P1). El recomendador se difirió o abandonó.

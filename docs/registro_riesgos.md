@@ -116,7 +116,7 @@ clásicos.
 **Probabilidad:** Media
 **Impacto:** Alto
 **Nivel de riesgo:** Alto
-**Estado:** Activo
+**Estado:** Cerrado al cierre del Sprint 2 (2026-07-05): el alcance completo se entregó (HU-12..HU-17; ver cierre-sprint-2.md); el monitoreo, marcado como simplificable, se entregó completo
 **Responsable de seguimiento:** Scrum Master + Product Owner
 
 **Descripción:**
@@ -197,7 +197,7 @@ Backlogs. La curva de aprendizaje puede generar fricción inicial.
 **Probabilidad:** Media
 **Impacto:** Medio
 **Nivel de riesgo:** Medio
-**Estado:** Activo
+**Estado:** Cerrado al cierre del Sprint 2: la curva se superó — API FastAPI, Docker y Streamlit implementados, testeados y validados E2E (cierre-etapa-7.md)
 **Responsable de seguimiento:** Machine Learning Engineer
 
 **Descripción:**
@@ -398,7 +398,7 @@ representación sparse adecuada.
 **Probabilidad:** Media
 **Impacto:** Medio
 **Nivel:** Medio
-**Estado:** Activo
+**Estado:** Activo (en cierre): el Sprint 2 vive en la rama Nassim; se resuelve al mergear el PR #28 a developer y promover a master (cierre-sprint-2.md)
 
 **Descripción:**
 El modelo híbrido de ramas adoptado en D-06 (cinco ramas personales
@@ -584,7 +584,7 @@ métricas infladas offline y fracaso en producción.
 **Probabilidad:** Media
 **Impacto:** Alto
 **Nivel de riesgo:** Alto
-**Estado:** Activo
+**Estado:** Mitigado: el pivote quedó justificado ante el cliente en la presentación del Sprint 1 y se consolida en la presentación final (HU-18)
 **Responsable de seguimiento:** Product Owner
 
 **Descripción:**
@@ -617,7 +617,7 @@ objetivo a mitad del Sprint 1; el comité podría esperar el entregable original
 **Probabilidad:** Media
 **Impacto:** Medio
 **Nivel de riesgo:** Medio
-**Estado:** Activo
+**Estado:** Activo bajo monitoreo (D-41): sin re-ventaneo; márgenes de validación absorben el sesgo (+3.17 d test; cumplimiento simulado 96.40%) y el runbook con disparadores queda operativo (estrategia_monitoreo.md)
 **Responsable de seguimiento:** Data Analyst
 
 > **Observación (2026-06-21, Etapa 4):** el split temporal lo confirma: la tasa de
@@ -762,35 +762,37 @@ como distancia, estado, flete, peso, categoría y comportamiento histórico.
 | Identificador | Categoría | Nivel | Estado |
 |---|---|---|---|
 | R-01 | Datos | Alto | Cerrado (pivote) |
-| R-02 | Tiempo | Alto | Activo |
+| R-02 | Tiempo | Alto | Cerrado (Sprint 2 entregado) |
 | R-03 | Equipo | Medio | Mitigado |
-| R-04 | Equipo | Medio | Activo |
+| R-04 | Equipo | Medio | Cerrado (despliegue implementado) |
 | R-05 | Equipo | Medio | Activo |
 | R-06 | Negocio | Medio | Activo |
 | R-07 | Datos | Medio | Activo |
 | R-08 | Técnico | Bajo | Cerrado (pivote) |
-| R-09 | Equipo / Técnica | Medio | Activo |
+| R-09 | Equipo / Técnica | Medio | Activo (en cierre: merge PR #28) |
 | R-10 | Técnica / Seguridad | Alto | Mitigado |
 | R-11 | Equipo / Proceso | Medio | Materializado (Etapa 1) |
 | R-12 | Técnica / Datos | Alto | Mitigado (auditado en Etapa 4) |
-| R-13 | Negocio / Proceso | Alto | Activo |
-| R-14 | Datos | Medio | Activo |
+| R-13 | Negocio / Proceso | Alto | Mitigado (presentaciones S1/S2) |
+| R-14 | Datos | Medio | Activo bajo monitoreo (D-41, runbook) |
 | R-15 | Negocio / Datos | Alto | Activo |
 | R-16 | Técnica / Operación | Medio | Mitigado en MVP |
 | R-17 | Datos / Negocio | Alto | Activo |
 
-**Riesgos críticos:** ninguno al cierre de la Etapa 4.
+**Riesgos críticos:** ninguno al cierre del Sprint 2 (2026-07-05).
 
-**Riesgos altos no mitigados:** R-02 (duración corta vs alcance), R-13
-(alineación del pivote con la propuesta aprobada), R-15 (política de promesa
-demasiado agresiva o conservadora) y R-17 (ausencia de variables logísticas más
-ricas). R-12 (data leakage en P1) quedó **mitigado y auditado** en la Etapa 4
-(sin fuga: `tasa_vendedor` 6%, métricas realistas), con vigilancia en la
-evaluación final.
+**Riesgos altos no mitigados:** R-15 (política de promesa sin costos comerciales
+reales) y R-17 (ausencia de variables logísticas del carrier) — ambos son límites
+estructurales **declarados** en `docs/informe_tecnico.md` y
+`docs/justificacion_modelo.md`, no bloqueos: la política P90 domina con la
+evidencia disponible y el techo de predicción está documentado (D-32).
+R-12 (data leakage) quedó mitigado, auditado y verificado también en la
+evaluación final (plan_validacion.md).
 
-**Foco de seguimiento prioritario:** R-02 (tiempo, cierre del Sprint 1), R-13
-(comunicar y justificar el pivote al mentor), R-14 (régimen temporal), R-15
-(política de promesa) y R-17 (datos logísticos adicionales).
+**Foco de seguimiento en operación:** R-14 (régimen temporal — vigilado por el
+monitoreo con runbook D-41: el vigilante de performance dispara antes que el PSI
+de features) y R-09 (se cierra con el merge del PR #28). El resto de riesgos de
+proyecto quedan cerrados o mitigados con la entrega.
 
 ---
 
