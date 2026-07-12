@@ -1,7 +1,7 @@
 """Genera un PDF con el resumen de la Etapa 3 (ETL + Feature Engineering) de P1.
 
 Fuente del contenido: docs/etapas/cierre-etapa-3.md
-Figuras embebidas: reports/figures_eda_etapa3/*.png (PNG a 150 dpi).
+Figuras embebidas: reports/figures_etl_fe_etapa3/*.png (PNG a 150 dpi).
 Salida: reports/etapa3_resumen.pdf
 """
 
@@ -27,7 +27,7 @@ from reportlab.platypus import (
 
 # --- Rutas -------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parents[1]
-FIG_DIR = ROOT / "reports" / "figures_eda_etapa3"
+FIG_DIR = ROOT / "reports" / "figures_etl_fe_etapa3"
 OUT_PDF = ROOT / "reports" / "etapa3_resumen.pdf"
 
 # Paleta
@@ -246,8 +246,8 @@ def construir_documento():
         "96,470 órdenes × 23 columnas (identificadores, split, 4 targets, features [t0]).",
         "<b>Pipeline de preprocesamiento serializado</b> (artifacts/pipeline_p1.joblib): "
         "ColumnTransformer ajustado solo en train + metadatos.",
-        "<b>EDA breve de cambios</b> (notebooks/03_EDA_VERTEX.ipynb): 7 figuras "
-        "antes/después exportadas a reports/figures_eda_etapa3/.",
+        "<b>EDA breve de cambios</b> (notebooks/03_ETL_FE_VERTEX.ipynb): 7 figuras "
+        "antes/después exportadas a reports/figures_etl_fe_etapa3/.",
         "<b>Documento técnico de FE</b> (docs/decisiones_fe.md): catálogo de features, "
         "ventana del vendedor, imputación, encodings, split y multicolinealidad.",
     ]
@@ -296,7 +296,7 @@ def construir_documento():
     story.append(
         Paragraph(
             "Las siguientes figuras documentan el antes/después del ETL+FE. "
-            "Se exportaron en PNG a 150 dpi desde notebooks/03_EDA_VERTEX.ipynb.",
+            "Se exportaron en PNG a 150 dpi desde notebooks/03_ETL_FE_VERTEX.ipynb.",
             styles["Cuerpo"],
         )
     )

@@ -116,7 +116,7 @@ clásicos.
 **Probabilidad:** Media
 **Impacto:** Alto
 **Nivel de riesgo:** Alto
-**Estado:** Activo
+**Estado:** Cerrado al cierre del Sprint 2 (2026-07-05): el alcance completo se entregó (HU-12..HU-17; ver cierre-sprint-2.md); el monitoreo, marcado como simplificable, se entregó completo
 **Responsable de seguimiento:** Scrum Master + Product Owner
 
 **Descripción:**
@@ -197,7 +197,7 @@ Backlogs. La curva de aprendizaje puede generar fricción inicial.
 **Probabilidad:** Media
 **Impacto:** Medio
 **Nivel de riesgo:** Medio
-**Estado:** Activo
+**Estado:** Cerrado al cierre del Sprint 2: la curva se superó — API FastAPI, Docker y Streamlit implementados, testeados y validados E2E (cierre-etapa-7.md)
 **Responsable de seguimiento:** Machine Learning Engineer
 
 **Descripción:**
@@ -398,7 +398,7 @@ representación sparse adecuada.
 **Probabilidad:** Media
 **Impacto:** Medio
 **Nivel:** Medio
-**Estado:** Activo
+**Estado:** Activo (en cierre): el Sprint 2 vive en la rama Nassim; se resuelve al mergear el PR #28 a developer y promover a master (cierre-sprint-2.md)
 
 **Descripción:**
 El modelo híbrido de ramas adoptado en D-06 (cinco ramas personales
@@ -584,7 +584,7 @@ métricas infladas offline y fracaso en producción.
 **Probabilidad:** Media
 **Impacto:** Alto
 **Nivel de riesgo:** Alto
-**Estado:** Activo
+**Estado:** Mitigado: el pivote quedó justificado ante el cliente en la presentación del Sprint 1 y se consolida en la presentación final (HU-18)
 **Responsable de seguimiento:** Product Owner
 
 **Descripción:**
@@ -617,7 +617,7 @@ objetivo a mitad del Sprint 1; el comité podría esperar el entregable original
 **Probabilidad:** Media
 **Impacto:** Medio
 **Nivel de riesgo:** Medio
-**Estado:** Activo
+**Estado:** Activo bajo monitoreo (D-41): sin re-ventaneo; márgenes de validación absorben el sesgo (+3.17 d test; cumplimiento simulado 96.40%) y el runbook con disparadores queda operativo (estrategia_monitoreo.md)
 **Responsable de seguimiento:** Data Analyst
 
 > **Observación (2026-06-21, Etapa 4):** el split temporal lo confirma: la tasa de
@@ -626,6 +626,12 @@ objetivo a mitad del Sprint 1; el comité podría esperar el entregable original
 > métricas de test son honestas pero más bajas y la calibración queda desplazada
 > (D-29). Se conserva el periodo completo y se difiere el re-ventaneo/segmentación a
 > la Etapa 6.
+>
+> **Actualización Fase 2 (2026-07-02):** el riesgo sigue activo para la regresión
+> de `dias_entrega_real`: la mediana real baja de 11.48 días en train a 7.23 días
+> en test. El modelo seleccionado queda conservador en test (bias +2.297 días),
+> lo que ayuda al cumplimiento de promesa pero puede inflar el colchón si el
+> régimen vuelve a cambiar.
 
 **Descripción:**
 El EDA detectó variación temporal de la tasa de tardanza y un posible incidente
@@ -650,35 +656,143 @@ cambia; además, los meses de bajo volumen producen tasas inestables.
 
 ---
 
+### R-15 - Política de promesa demasiado agresiva o conservadora
+
+**Categoría:** Negocio / Datos
+**Probabilidad:** Media
+**Impacto:** Alto
+**Nivel de riesgo:** Alto
+**Estado:** Activo
+**Responsable de seguimiento:** Product Owner + Data Scientist
+
+**Descripción:**
+La Fase 2 convierte predicciones de días en promesas al cliente mediante una
+política P80/P90/P95. Una política demasiado agresiva puede aumentar
+incumplimientos; una demasiado conservadora puede hacer que Olist parezca lento
+frente a alternativas de compra.
+
+**Detonantes posibles:**
+- Elegir P80 solo por reducir días prometidos sin aceptar el mayor riesgo.
+- Elegir P95 solo por cumplimiento, ignorando competitividad.
+- No contar con costos reales de incumplimiento, compensación o pérdida de venta.
+
+**Plan de mitigación:**
+- Presentar P90 como candidata preliminar, no como decisión productiva cerrada.
+- Comparar siempre cumplimiento, colchón y promesa promedio.
+- Validar el apetito de riesgo con Product Owner antes de producción.
+
+**Plan de contingencia:**
+- Si la política elegida incumple demasiado, subir el nivel de servicio o agregar
+  márgenes por ruta/estado.
+- Si la política queda demasiado conservadora, evaluar P80/P90 segmentado por
+  rutas de bajo riesgo.
+
+**Etapas afectadas:** Fase 2, 6, 7, 9
+
+---
+
+### R-16 - Complejidad operativa de incorporar clustering en producción
+
+**Categoría:** Técnica / Operación
+**Probabilidad:** Media
+**Impacto:** Medio
+**Nivel de riesgo:** Medio
+**Estado:** Mitigado en MVP
+**Responsable de seguimiento:** Machine Learning Engineer + Data Scientist
+
+**Descripción:**
+Incorporar clustering agregaría un segundo componente al sistema: entrenar,
+versionar y monitorear grupos de rutas, sellers o zonas. En el experimento de
+Fase 2, la mejora fue insignificante frente al baseline vigente.
+
+**Detonantes posibles:**
+- Incorporar clusters por atractivo técnico sin mejora material.
+- No definir fallback para rutas o sellers nuevos.
+- No explicar el significado operativo de cada cluster.
+
+**Plan de mitigación:**
+- No incorporar clustering al MVP.
+- Mantenerlo solo como línea experimental futura.
+- Exigir mejora clara en MAE y backtesting antes de reabrirlo.
+
+**Plan de contingencia:**
+- Si el equipo decide reabrir clustering, versionar el artefacto, agregar tests
+  anti-leakage y definir fallback antes de integrarlo.
+
+**Etapas afectadas:** Fase 2, 7, 8
+
+---
+
+### R-17 - Limitación por ausencia de variables logísticas más ricas
+
+**Categoría:** Datos / Negocio
+**Probabilidad:** Alta
+**Impacto:** Medio
+**Nivel de riesgo:** Alto
+**Estado:** Activo
+**Responsable de seguimiento:** Product Owner + Data Analyst
+
+**Descripción:**
+El dataset público de Olist no incluye variables logísticas profundas como
+carrier real, tipo de servicio, capacidad, inventario, cortes de despacho, SLA
+interno, incidentes operativos o costos de compensación. El modelo usa proxies
+como distancia, estado, flete, peso, categoría y comportamiento histórico.
+
+**Detonantes posibles:**
+- Interpretar el modelo como explicación causal de la logística.
+- Prometer impacto financiero que el dataset no permite medir.
+- Llevar el MVP a producción sin enriquecer datos operativos.
+
+**Plan de mitigación:**
+- Declarar la limitación en el cierre del MVP.
+- Presentar los resultados como evaluación offline, no como prueba de impacto
+  real en conversión o costos.
+- Priorizar nuevas fuentes logísticas si Olist las tuviera disponibles.
+
+**Plan de contingencia:**
+- Si se requiere una decisión productiva, pedir datos operativos adicionales y
+  recalibrar el modelo antes de usarlo.
+
+**Etapas afectadas:** Fase 2, 6, 7, 9
+
+---
+
 ## Resumen ejecutivo del registro
 
 | Identificador | Categoría | Nivel | Estado |
 |---|---|---|---|
 | R-01 | Datos | Alto | Cerrado (pivote) |
-| R-02 | Tiempo | Alto | Activo |
+| R-02 | Tiempo | Alto | Cerrado (Sprint 2 entregado) |
 | R-03 | Equipo | Medio | Mitigado |
-| R-04 | Equipo | Medio | Activo |
+| R-04 | Equipo | Medio | Cerrado (despliegue implementado) |
 | R-05 | Equipo | Medio | Activo |
 | R-06 | Negocio | Medio | Activo |
 | R-07 | Datos | Medio | Activo |
 | R-08 | Técnico | Bajo | Cerrado (pivote) |
-| R-09 | Equipo / Técnica | Medio | Activo |
+| R-09 | Equipo / Técnica | Medio | Activo (en cierre: merge PR #28) |
 | R-10 | Técnica / Seguridad | Alto | Mitigado |
 | R-11 | Equipo / Proceso | Medio | Materializado (Etapa 1) |
 | R-12 | Técnica / Datos | Alto | Mitigado (auditado en Etapa 4) |
-| R-13 | Negocio / Proceso | Alto | Activo |
-| R-14 | Datos | Medio | Activo |
+| R-13 | Negocio / Proceso | Alto | Mitigado (presentaciones S1/S2) |
+| R-14 | Datos | Medio | Activo bajo monitoreo (D-41, runbook) |
+| R-15 | Negocio / Datos | Alto | Activo |
+| R-16 | Técnica / Operación | Medio | Mitigado en MVP |
+| R-17 | Datos / Negocio | Alto | Activo |
 
-**Riesgos críticos:** ninguno al cierre de la Etapa 4.
+**Riesgos críticos:** ninguno al cierre del Sprint 2 (2026-07-05).
 
-**Riesgos altos no mitigados:** R-02 (duración corta vs alcance) y R-13 (alineación
-del pivote con la propuesta aprobada). R-12 (data leakage en P1) quedó **mitigado y
-auditado** en la Etapa 4 (sin fuga: `tasa_vendedor` 6%, métricas realistas), con
-vigilancia en la evaluación final.
+**Riesgos altos no mitigados:** R-15 (política de promesa sin costos comerciales
+reales) y R-17 (ausencia de variables logísticas del carrier) — ambos son límites
+estructurales **declarados** en `docs/informe_tecnico.md` y
+`docs/justificacion_modelo.md`, no bloqueos: la política P90 domina con la
+evidencia disponible y el techo de predicción está documentado (D-32).
+R-12 (data leakage) quedó mitigado, auditado y verificado también en la
+evaluación final (plan_validacion.md).
 
-**Foco de seguimiento prioritario:** R-02 (tiempo, cierre del Sprint 1), R-13
-(comunicar y justificar el pivote al mentor) y R-14 (régimen temporal, a resolver en
-la Etapa 6).
+**Foco de seguimiento en operación:** R-14 (régimen temporal — vigilado por el
+monitoreo con runbook D-41: el vigilante de performance dispara antes que el PSI
+de features) y R-09 (se cierra con el merge del PR #28). El resto de riesgos de
+proyecto quedan cerrados o mitigados con la entrega.
 
 ---
 

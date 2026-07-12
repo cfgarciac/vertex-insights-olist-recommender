@@ -29,8 +29,8 @@ Decisiones de diseño relevantes (ver docs/decisiones_fe.md):
 
 Uso:
     python -m src.features.build_dataset \
-        --input  /Users/amaury/henry/Proyecto_Final/vertex_files/orders_consolidated.csv \
-        --output /Users/amaury/henry/Proyecto_Final/vertex_files/orders_features.csv
+        --input  data/raw/orders_consolidated.csv \
+        --output data/processed/orders_features.csv
 """
 
 from __future__ import annotations
@@ -46,10 +46,11 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 # --------------------------------------------------------------------------- #
-# Rutas por defecto
+# Rutas por defecto (portables, relativas al repo; en otra ubicación usar --input/--output)
 # --------------------------------------------------------------------------- #
-DEFAULT_INPUT = "/Users/amaury/henry/Proyecto_Final/vertex_files/orders_consolidated.csv"
-DEFAULT_OUTPUT = "/Users/amaury/henry/Proyecto_Final/vertex_files/orders_features.csv"
+_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_INPUT = str(_ROOT / "data" / "raw" / "orders_consolidated.csv")
+DEFAULT_OUTPUT = str(_ROOT / "data" / "processed" / "orders_features.csv")
 DEFAULT_PIPELINE = (
     Path(__file__).resolve().parents[2] / "artifacts" / "pipeline_p1.joblib"
 )

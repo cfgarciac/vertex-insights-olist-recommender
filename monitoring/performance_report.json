@@ -1,0 +1,15 @@
+{
+  "generado": "2026-07-05 14:08",
+  "n_ordenes_con_etiqueta": 1500,
+  "drift_inducido": "none",
+  "cumplimiento_realizado": 0.964,
+  "cumplimiento_esperado": 0.967,
+  "mae_produccion": 4.43,
+  "sobre_prediccion_media": 2.9,
+  "sobre_prediccion_test_referencia": 3.17,
+  "tasa_alertas_escudo": 0.348,
+  "captura_incumplidas_por_escudo": 0.3889,
+  "alertas": [
+    "sin alertas: dentro de lo esperado"
+  ]
+}

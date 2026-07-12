@@ -18,7 +18,7 @@
 - Script reproducible: `src/features/build_dataset.py`
 - Tabla analítica: `vertex_files/orders_features.csv` (96,470 × 23)
 - Pipeline serializado: `artifacts/pipeline_p1.joblib`
-- EDA de cambios: `notebooks/03_EDA_VERTEX.ipynb`
+- EDA de cambios: `notebooks/03_ETL_FE_VERTEX.ipynb`
 
 ---
 
@@ -175,7 +175,7 @@ de la entrega.
 - **Corte por fecha de compra** (no aleatorio): train = pasado, val/test =
   futuro. Proporción **70/15/15** (train 67,529 · val 14,470 · test 14,471).
   (Decisión D-25; se apoya en D-09.)
-- **Régimen 2018 (R-14):** el notebook `03_EDA_VERTEX.ipynb` inspecciona la tasa
+- **Régimen 2018 (R-14):** el notebook `03_ETL_FE_VERTEX.ipynb` inspecciona la tasa
   y el volumen mensuales. Se **deja el periodo completo** en esta etapa (sin
   recortar) y se documenta la cola final como punto de vigilancia para la Etapa 4
   (si el modelo muestra degradación en el tramo final, se reevaluará recortar o

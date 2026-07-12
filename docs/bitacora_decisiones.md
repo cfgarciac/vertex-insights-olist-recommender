@@ -1151,10 +1151,414 @@ Todos los targets son [POST] (solo etiquetan; nunca son features). El CSV de sal
 
 ---
 
+### D-31 — Reentrenamiento multi-modelo de P1 y selección del modelo de riesgo confiable (regresión calibrada)
+
+**Fecha:** 2026-06-29
+**Estado:** Aceptada
+**Responsable:** Machine Learning Engineer (Wessin, Nassim)
+
+**Contexto:**
+Tras integrar D-30 (PR #22 de Amaury: `Amaury → developer → Nassim`), se reentrena P1 sobre `data/processed/orders_features.csv` (96,470 órdenes; mismos 16 features [t0]; targets `entrega_tarde`, `clase_entrega`, `dias_vs_promesa`, `dias_entrega_real`) buscando mejores métricas y un detector de tardanza **confiable**. Se respeta la disciplina vigente: split temporal (D-25), ajuste en `val`, `test` una sola vez, candado anti-fuga (D-21/R-12; `tasa_vendedor` pesa ~5%).
+
+**Decisión:**
+Se añade el módulo `src/models/train_multimodelo.py`, que entrena varias familias (LogReg, RandomForest, HistGradientBoosting, XGBoost) en tres tareas (binaria, multiclase, regresión), con calibración y un experimento de re-ventaneo. Resultados en `test`:
+- **Binario directo**: en su techo (XGBoost PR-AUC 0.122 / ROC 0.696; HGB 0.124 / 0.690) — igual que la Etapa 4 (D-27): las features [t0] no cambiaron, así que la discriminación no sube.
+- **Modelo de riesgo elegido**: el **score de la regresión `dias_vs_promesa` calibrado a P(tarde)** (isotónica ajustada en `val`). Mejor discriminación que el binario directo y que la Etapa 4: **ROC-AUC 0.742** (vs 0.703), **PR-AUC 0.132** (vs 0.124), **Brier 0.063** (vs 0.186). A un punto de operación de **alto recall (~0.94 alertando 68% de las órdenes; umbral ajustable)** es consistente por **región** (recall 0.78–0.95) y en **cold-start** de vendedores nuevos (ROC 0.79) → confiable, sin puntos ciegos.
+- **Calibración isotónica** reduce el Brier de 0.186 a ~0.062 (probabilidades fiables como "riesgo").
+
+Artefactos: `artifacts/modelo_riesgo_p1.joblib` (recomendado) + `modelo_binario/multiclase/regresion.joblib`; reporte y figuras consolidados en la estructura de Etapa 4 (`reports/etapa4_modelado_resultados.md`, `reports/etapa4_metrics.json`, `reports/figures_modelado_etapa4/`). El antiguo `modelo_p1.joblib` (clasificador) se **retiró**.
+
+**Alternativas consideradas:**
+- Clasificador binario directo como entregable — menor ROC y peor calibración que la vía de regresión.
+- XGBoost binario + calibración isotónica — recall alto y Brier 0.062, pero menor ROC (0.693); se mantiene como respaldo interpretable.
+
+**Consecuencias:**
+- Positivas: modelo calibrado, mejor discriminación que la Etapa 4 y recall alto y homogéneo; capacidades nuevas (multiclase, regresión).
+- Negativas o trade-offs: a alto recall la precisión es baja (~0.09, alerta 68%) por la tasa base de 6.6%; la elección **formal** del umbral con el PO y la calibración definitiva se mantienen para la Etapa 6 (HU-12, D-28).
+
+**Etapa asociada:** 4 (re-ejecución) / preparación de Etapa 6
+
+---
+
+### D-32 — No adoptar features [t0] derivadas adicionales: el techo de P1 es de datos (R-14), no de modelado
+
+**Fecha:** 2026-06-29
+**Estado:** Aceptada
+**Responsable:** Machine Learning Engineer (Wessin, Nassim)
+
+**Contexto:**
+D-30 dejó *diferido* añadir features específicas. Para intentar subir el techo del binario se probaron features [t0] nuevas derivadas de los datos existentes, **sin fuga** (verificado point-in-time): tasas históricas por **ruta** (`customer_state→seller_state`) y por **categoría**, estacionalidad (`es_temporada_alta`, `dias_a_navidad`), `holgura_por_km` y `es_region_remota`.
+
+**Decisión:**
+**No adoptarlas.** En `test` **degradan** el modelo (PR-AUC 0.122 → 0.093; ROC 0.696 → 0.591) pese a ser muy "importantes" en entrenamiento (`tasa_ruta` fue la feature top). Codifican el **régimen temporal del train** (tardanza ~9–13%) que **no se sostiene en `test`** (6.6%): es drift de régimen (R-14), no fuga. Conclusión: el techo predictivo de P1 está limitado por **los datos/régimen, no por el modelado**. Subirlo de verdad exige (a) **datos operativos [t0] nuevos** (no disponibles en Olist: carga del CD, transportista/ruta real, etc.) o (b) **tratar R-14** (re-ventaneo/segmentación temporal + recalibración), trabajo diferido a la **Etapa 6**.
+
+**Alternativas consideradas:**
+- Adoptarlas igualmente — descartado: entrega un modelo peor (sobreajuste al régimen antiguo).
+- Probar subconjuntos — no perseguido: la degradación de ROC (−0.10) es contundente y el alcance se acordó mínimo.
+
+**Consecuencias:**
+- Positivas: se evita degradar el modelo y se documenta con honestidad el límite real; refuerza R-14 como el riesgo central a resolver en la Etapa 6.
+- Negativas o trade-offs: el binario directo se mantiene en ~0.12 de PR-AUC hasta que haya datos nuevos o se trate el régimen.
+
+**Etapa asociada:** 4 (re-ejecución)
+### D-33 — Framing de P1: clasificación (Fase 1, entregada) + regresión de duración (Fase 2)
+
+> *Nota de integración: las decisiones D-33 a D-37 se registraron en la rama `Harrison`
+> como D-30 a D-34; se renumeran aquí al integrarse después de D-30–D-32 (ya asignadas),
+> conservando su contenido íntegro.*
+
+**Fecha:** 2026-06-28 · **Estado:** Aceptada · **Responsable:** Equipo + mentoría DVA
+**Contexto:** D-19/D-20 fijaron clasificación sin pesarla vs regresión por valor; la
+regresión quedó pendiente (decisiones_fe.md). El DVA aporta evidencia para decidir.
+**Decisión:** Fase 1 = clasificación `entrega_tarde` (V1.3.0, conservada). Fase 2 =
+regresión sobre `dias_entrega_real` (target C) para afinar la promesa. Target B descartado.
+**Alternativas:** seguir solo con A (techo de valor; palanca de ops débil); regresión sobre
+B (sesgada). **Consecuencias:** reusa el cimiento del repo; exige nivel de servicio (Charter);
+el valor de afinar la promesa no es medible con este dataset (limitación declarada).
+**Etapa asociada:** transversal (cierre de reconciliación).
+
+---
+
+### D-34 - Cierre del MVP de Fase 2
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Product Owner + Data Scientist
+
+**Contexto:**
+La Fase 2 ya completo ETL experimental, EDA, features rolling point-in-time,
+modelado de regresion, backtesting P80/P90/P95 y experimento de clustering. El
+repositorio mantiene Fase 1 aislada y no se guardaron modelos productivos de Fase
+2.
+
+**Decision:**
+Se cierra formalmente el MVP offline de Fase 2 como regresion supervisada tabular
+sobre `dias_entrega_real`, con evaluacion temporal y documentacion de alcance,
+limitaciones y riesgos.
+
+**Alternativas consideradas:**
+- Extender el MVP hacia API/dashboard - descartado por estar fuera del alcance de
+  cierre documental.
+- Incorporar mas experimentos antes del cierre - descartado para evitar alcance
+  abierto sin mejora material.
+
+**Consecuencias:**
+- Positivas: Fase 2 queda trazable, defendible y separada de Fase 1.
+- Negativas o trade-offs: la solucion queda como MVP offline, no como producto en
+  produccion.
+
+**Etapa asociada:** Fase 2
+
+---
+
+### D-35 - Seleccion del modelo Random Forest para Fase 2
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Data Scientist
+
+**Contexto:**
+Chat E comparo baselines, Ridge, Random Forest y XGBoost usando split temporal. La
+seleccion se hizo por menor MAE en validacion; test se reservo para evaluacion
+final del candidato elegido.
+
+**Decision:**
+Se selecciona `random_forest` con feature set `M0_mas_seller_rolling` como modelo
+MVP de Fase 2. Metricas finales: MAE val 4.553 dias, MAE test 3.989 dias y bias
+test +2.297 dias.
+
+**Alternativas consideradas:**
+- Medianas por ruta/estado - utiles como baseline, pero no como mejor candidato.
+- Ridge - descartado por mayor MAE.
+- XGBoost Regressor - competitivo, pero no supero al candidato elegido en val.
+
+**Consecuencias:**
+- Positivas: modelo tabular robusto, supera baselines y conserva disciplina
+  anti-leakage.
+- Negativas o trade-offs: menor interpretabilidad directa que un modelo lineal y
+  tendencia conservadora en test.
+
+**Etapa asociada:** Fase 2
+
+---
+
+### D-36 - Politica P90 como candidata preliminar de promesa
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Product Owner + Data Scientist
+
+**Contexto:**
+El backtesting simulo la promesa actual de Olist y las politicas P80, P90 y P95
+usando margenes calculados en validacion y evaluacion final en test.
+
+**Decision:**
+Se deja P90 como politica candidata preliminar para discusion de negocio. En test
+logra 96.46% de cumplimiento, colchon promedio 9.07 dias y promesa promedio 17.44
+dias, frente a 94.32%, 10.75 dias y 19.12 dias de la promesa actual Olist.
+
+**Alternativas consideradas:**
+- P80 - mas competitiva, pero con mayor incumplimiento simulado.
+- P95 - mas confiable, pero demasiado conservadora y con promesa promedio mas
+  alta.
+
+**Consecuencias:**
+- Positivas: ofrece un balance defendible entre confianza y competitividad.
+- Negativas o trade-offs: requiere validacion con costos reales y apetito de
+  riesgo antes de produccion.
+
+**Etapa asociada:** Fase 2
+
+---
+
+### D-37 - Clustering no incorporado al MVP de Fase 2
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Data Scientist + Machine Learning Engineer
+
+**Contexto:**
+Chat G probo clustering de rutas, sellers y variables geograficas como experimento
+avanzado. La mejor variante fue `ruta_k8`, con mejora aproximada de -0.0006 dias
+en MAE val y -0.0028 dias en MAE test. En P90, el cumplimiento test baja
+levemente de 96.455% a 96.434%.
+
+**Decision:**
+No incorporar clustering al MVP. Queda documentado como linea experimental futura.
+
+**Alternativas consideradas:**
+- Incorporar `ruta_k8` - descartado por mejora insignificante frente al costo
+  productivo.
+- Probar mas valores de k o mas variantes - diferido fuera del MVP.
+
+**Consecuencias:**
+- Positivas: evita mantener un segundo componente sin valor material.
+- Negativas o trade-offs: se abandona por ahora una posible linea avanzada de
+  agrupamiento logistico.
+
+**Etapa asociada:** Fase 2
+
+---
+
+### D-38 — Unión Fase 1 + Fase 2 en el producto "Promesa inteligente + escudo de riesgo"
+
+**Fecha:** 2026-07-02
+**Estado:** Aceptada
+**Responsable:** Machine Learning Engineer (Wessin, Nassim), sobre la propuesta acordada con el PO
+
+**Contexto:**
+El equipo quedó con dos modelos complementarios de P1: el **motor** de Fase 2 (regresión de
+`dias_entrega_real` + políticas de promesa P80/P90/P95, D-33 a D-36, Harrison) y el **escudo**
+de Fase 1 (P(entrega tarde) calibrada, D-31). La propuesta conjunta ("la regresión fija la
+promesa; el clasificador la defiende") requería integrarlos en un solo producto reproducible,
+ligados por la identidad `dias_vs_promesa = dias_entrega_real − dias_prometidos`.
+
+**Decisión:**
+Se crea `src/models/producto_promesa_riesgo.py`, que entrena el motor (Random Forest de Chat E),
+calcula márgenes SOLO en `val`, simula promesas, aplica el escudo y evalúa en `test` una sola vez:
+- **Promesa:** P90 confirma su dominancia (cumplimiento 96.7% con promesa promedio 17.9 días vs
+  94.3% / 19.1 días de la promesa actual): más confiable Y más corta. La política mixta por riesgo
+  (P80/P95 según bandera) queda dominada por P90 y se documenta como experimento.
+- **Hallazgo de la unión:** el escudo v1 (calibrado a la promesa VIGENTE) **no transfiere** a la
+  promesa nueva (captura 48.6% de sus fallos residuales alertando 64%: anti-señal). Se añade el
+  **escudo v2**, reentrenado contra `promesa_P90` (mismas 16 features [t0], misma familia XGBoost):
+  captura ~48% de los fallos alertando solo ~35% (lift ≈1.4×). Producto final: promesa P90 (motor)
+  + escudo v2 defendiéndola + escudo v1 vigilando la promesa vigente durante la transición.
+- **Datos con degradación controlada:** si `orders_fase2_regresion_rolling.csv` no está disponible
+  (no se versiona), el motor usa el bloque `M0_base_sin_rolling` (2º de Chat E, Δ MAE val ≈0.04)
+  sobre `orders_features.csv`, sin alterar la selección de D-35.
+- Artefactos: `artifacts/producto_promesa_riesgo.joblib`, `reports/producto_promesa_riesgo.md`
+  (+ métricas JSON y `reports/figures_producto_promesa_riesgo/`).
+
+**Alternativas consideradas:**
+- Mantener los dos modelos separados — descartado: el valor de negocio (promesa honesta defendida)
+  exige operarlos juntos y el hallazgo v1→v2 solo emerge al unirlos.
+- Usar el escudo v1 como defensa de la promesa nueva — descartado con datos: no transfiere.
+- Política mixta por riesgo como promesa por defecto — descartada por dominancia de P90; queda
+  documentada para revisión con costos reales.
+
+**Consecuencias:**
+- Positivas: un solo producto end-to-end con evidencia en `test`; el escudo v2 hace operativa la
+  promesa nueva; reutiliza el código de Fase 2 sin cambiar su selección.
+- Negativas o trade-offs: el target del escudo v2 usa predicciones in-sample del motor en `train`
+  (evaluación en `test` sigue siendo honesta); calibración fina del v2, punto de operación con el
+  PO y costos reales quedan para la Etapa 6.
+
+**Etapa asociada:** Fase 2 / preparación de la Etapa 6
+
+---
+
+### D-39 — Arquitectura de despliegue MLOps: orden API→Docker→dashboard→monitoreo y contrato del request
+
+**Fecha:** 2026-07-05
+**Estado:** Aceptada (implementada el 2026-07-05; ver D-41 para las decisiones que dejaba abiertas)
+**Responsable:** Machine Learning Engineer (Wessin, Nassim), en respuesta a la propuesta del Scrum Master
+
+**Contexto:**
+Con el producto D-38 terminado, el SM propuso iniciar el despliegue MLOps con 3 etapas:
+1º monitoreo de data drift (KS/PSI/Chi² en `model_monitoring.py`), 2º dashboard Streamlit
+completo, 3º API FastAPI + Docker con "evaluación y selección de variables (no necesariamente
+todas con las que fue entrenado)", y compartió su guía de proyectos ML (Fase 6 = despliegue,
+Fase 7 = monitoreo, Fase 8 = calidad). Se evaluó la propuesta contra la guía, el backlog
+(HU-12..16) y el estado real del repo (Dockerfile placeholder; sin código de API/dashboard/
+monitoreo; deps de serving solo en `requirements-dev.txt`; `.joblib` gitignored).
+
+**Decisión:**
+Se adopta la arquitectura documentada en `docs/arquitectura_despliegue.md`:
+- **Orden corregido:** Etapa 6 (congelar umbral/política con el PO) → contrato + lookups →
+  API FastAPI (HU-13) → Docker (HU-14) → dashboard (HU-15) → monitoreo (HU-16) → tests/CI.
+  Razones: es el orden de la propia guía del SM (F6→F7→F8) y del backlog (HU-13/14/15
+  prioridad Alta antes que HU-16 Media); el monitoreo vigila requests logueados por la API
+  (sin API se construye dos veces); HU-15 exige conexión funcional con la API; R-02 marca el
+  monitoreo como lo simplificable. Concesión: el baseline de drift (solo depende del train)
+  se adelanta en paralelo desde la Fase 1.
+- **"Selección de variables" se re-encuadra como contrato del request:** el modelo está
+  entrenado (motor `M0_base_sin_rolling` = 15 features, verificado en el artefacto; escudo =
+  16 [t0]) y un pipeline serializado falla si falta una columna — quitar features implicaría
+  reentrenar e invalidar métricas/márgenes. El cliente envía ~7 campos y el servidor deriva
+  el resto con lookups estáticos horneados a fecha de corte (catálogo, geo, stats de vendedor
+  point-in-time), que hoy no existen y son el trabajo real de la Etapa 7.
+- **Salvaguardas obligatorias:** pins de versiones iguales al venv de entrenamiento; `src/`
+  importable en el contenedor (el unpickle referencia `build_preprocessor`) + smoke test;
+  test de contrato contra las listas del joblib; política de faltantes flaggeada; logging
+  JSONL de cada request (puente API→monitoreo); ground truth diferido ~30d como vigilante de
+  R-14 (bias motor test +3.17d); fixture sintético para CI; escalación 1º recalibrar márgenes,
+  2º reentrenar con re-ventaneo.
+- Cinco decisiones quedan abiertas para el PO/equipo (escudo v1/v2, dashboard híbrido,
+  lookups estáticos, demo de drift en vivo, disparadores de reentrenamiento).
+
+**Alternativas consideradas:**
+- Orden del SM (drift→dashboard→API) — descartado: contradice su guía, el backlog y las
+  dependencias técnicas; pondría primero el componente sacrificable según R-02.
+- Servir con un subconjunto de variables — descartado: exige reentrenar (reabre Etapa 5).
+- SQLite para logs de inferencia — descartado por simplicidad (JSONL append-only, cero deps).
+- `model_monitoring.py` suelto — se prefiere `src/monitoring/` por la convención de paquetes
+  del repo; equivalente funcional, se confirma en planning.
+
+**Consecuencias:**
+- Positivas: roadmap ejecutable alineado con backlog y tags (V1.6.0/V1.7.0); el rigor pedido
+  por el SM se conserva donde corresponde (contrato, monitoreo con drift inducido); mínimo
+  viable definido si R-02 se materializa.
+- Negativas o trade-offs: la Etapa 7 carga el trabajo real de los lookups (no estaba explícito
+  en el backlog); el monitoreo con etiquetas diferidas solo puede demostrarse en producción
+  simulada (replay del test), no con tráfico real.
+
+**Etapa asociada:** Etapas 6–8 (despliegue y monitoreo)
+
+---
+
+### D-40 — Cambio de roles del equipo: Analytics Lead y reasignación de análisis
+
+**Fecha:** 2026-07-05
+**Estado:** Aceptada
+**Responsable:** Equipo completo, por indicación del tutor del proyecto
+
+**Contexto:**
+El tutor del proyecto indicó reestructurar los roles del equipo para la fase final:
+los roles de gestión Scrum (Product Owner y Scrum Master) dejan de existir como
+títulos y se reemplazan por roles funcionales de analítica, más representativos del
+trabajo real de cada integrante de cara al cliente. D-04 fijó la composición
+original; esta decisión la actualiza sin reescribirla.
+
+**Decisión:**
+Nueva composición de roles vigente desde el cierre del Sprint 2:
+
+| Integrante | Rol anterior (D-04) | Rol vigente |
+|---|---|---|
+| Tutalcha Pame, Harrison Alberto | Product Owner | **Analytics Lead** |
+| García Cadena, Cristian Fernando | Scrum Master | **Data Analyst** |
+| López Solórzano, Juan Carlos | Data Analyst | **BI Analyst** (tablero Power BI) |
+| Aguilar Lomas, Oscar Amaury | Data Scientist | Data Scientist (sin cambio) |
+| Wessin, Nassim | Machine Learning Engineer | Machine Learning Engineer (sin cambio) |
+
+- Juan Carlos pasa a **BI Analyst** para evitar la colisión de títulos con Cristian
+  y reflejar su entregable principal (tablero Power BI de 5 páginas).
+- Responsabilidades de gestión que quedaban en SM/PO: `docs/` pasa a responsabilidad
+  del Analytics Lead con apoyo del equipo; `.github/` y `scripts/` pasan al MLE
+  (quien mantiene el CI). Se actualizan `README.md`, `docs/convenciones.md` y
+  `.agents/rules/context.md`.
+
+**Alternativas consideradas:**
+- Mantener ambos Data Analyst (Cristian y Juan Carlos) — descartado: títulos
+  duplicados confunden al cliente en la presentación final.
+- Conservar los títulos Scrum junto a los nuevos — descartado: la presentación es
+  ante la "junta directiva" del cliente; los roles funcionales comunican mejor.
+
+**Consecuencias:**
+- Positivas: presentación final con roles auto-explicativos; cada integrante expone
+  el bloque que construyó.
+- Negativas o trade-offs: los documentos históricos (cierres de etapas 0–4, D-04)
+  conservan los títulos antiguos — se leen con su fecha; no se reescribe el pasado.
+
+**Etapa asociada:** Cierre del Sprint 2 / preparación de la entrega final
+
+---
+
+### D-41 — Cierre de la Etapa 6: umbrales y política ratificados, postura R-14
+
+**Fecha:** 2026-07-05
+**Estado:** Aceptada
+**Responsable:** Equipo (ratificación de las decisiones diferidas por D-28, D-31, D-36 y D-39)
+
+**Contexto:**
+D-28 y D-31 difirieron la elección formal del umbral del escudo a la Etapa 6; D-36
+dejó P90 como candidata preliminar; D-39 dejó 5 decisiones abiertas de despliegue.
+Con la evidencia de test (D-38), la validación E2E del serving y la producción
+simulada con drift inducido, el equipo ratifica los valores para la entrega final.
+
+**Decisión:**
+1. **Política de promesa: P90** (margen 5.84 d sobre la predicción del motor).
+   Evidencia: domina a la promesa actual en ambas dimensiones (96.70% de
+   cumplimiento con promesa media de 17.87 d vs 94.32% / 19.12 d).
+2. **Escudo v2 como principal** (umbral **0.3658**): defiende la promesa P90
+   capturando 47.6% de los incumplimientos residuales alertando 34.7% (lift 1.4×).
+   **Escudo v1 en transición** (umbral **0.0721**, punto `recall_obj_70`) mientras
+   opere la promesa vigente de Olist.
+3. **Postura R-14: sin re-ventaneo por ahora.** Los márgenes calculados en
+   validación (régimen reciente) absorben la sobre-predicción del motor
+   (+3.17 d test; +2.90 d en producción simulada, cumplimiento realizado 96.40%).
+   Mitigación: monitoreo continuo con runbook escalonado (1º recalibrar márgenes,
+   2º reentrenar) y disparadores concretos (PSI > 0.25 en ≥2 features no-derivadas,
+   cumplimiento < 95% en 30 días, o sobre-predicción < +1.6 d o negativa).
+4. **Decisiones abiertas de D-39 ratificadas:** dashboard híbrido (predicción vía
+   API, analítica local) · lookups estáticos horneados a fecha de corte · demo del
+   drift inducido en la presentación final · disparadores de reentrenamiento del
+   punto 3.
+5. Documentación de soporte creada: `docs/justificacion_modelo.md` y
+   `docs/plan_validacion.md` (requisitos de HU-12).
+
+**Alternativas consideradas:**
+- Re-ventanear el train antes de entregar — descartado: reabre el modelado a días
+  de la entrega y la evidencia muestra que los márgenes absorben el sesgo.
+- Dejar los umbrales como "provisionales" en la entrega — descartado: la
+  presentación final entrega LA solución; la trazabilidad queda en `/health` y en
+  esta bitácora, y ajustar un umbral no requiere refactorización.
+
+**Consecuencias:**
+- Positivas: HU-12 cierra con todos sus criterios; el producto se presenta con
+  valores ratificados y evidencia completa.
+- Negativas o trade-offs: la política P90 podrá revisarse cuando Olist comparta
+  costos comerciales reales (R-15); el runbook R-14 queda como compromiso operativo.
+
+**Etapa asociada:** Etapa 6 (evaluación final y selección)
+
+---
+
 *Bitácora de decisiones del Proyecto Final. D-01 a D-12 corresponden a la
 planificación y al cierre de la Etapa 0; D-13 a D-15 al cierre de la Etapa 1;
 D-16 a D-21 al pivote a P1 documentado en la Etapa 2 (D-02 y D-03 quedan
 reemplazadas); D-22 a D-26 al feature engineering de la Etapa 3; D-27 a D-29 al
 modelado de la Etapa 4; D-30 a la re-ejecución de la Etapa 3 (ampliación a
-múltiples familias de modelos). Nuevas decisiones se agregarán durante la
-ejecución del proyecto.*
+múltiples familias de modelos); D-31 y D-32 al reentrenamiento multi-modelo y a la
+mejora de confiabilidad post-Sprint 1 (modelo de regresión calibrado; las features
+[t0] derivadas no superan el techo por el régimen R-14); D-33 a D-37 a la Fase 2
+de regresión de duración (framing, cierre del MVP, Random Forest, política P90 y
+clustering no incorporado; registradas en la rama `Harrison` como D-30 a D-34 y
+renumeradas al integrarse); D-38 a la unión de ambas fases en el producto
+"Promesa inteligente + escudo de riesgo"; D-39 a la arquitectura de despliegue
+MLOps de las Etapas 6–8 (orden API→Docker→dashboard→monitoreo y contrato del
+request); D-40 al cambio de roles del equipo (Analytics Lead / Data Analyst /
+BI Analyst, por indicación del tutor); D-41 al cierre de la Etapa 6 con la
+ratificación de la política P90, los umbrales del escudo (v2 = 0.3658 principal,
+v1 = 0.0721 en transición) y la postura ante R-14 (monitoreo con runbook, sin
+re-ventaneo). Con D-41 se cierra el ciclo de decisiones del Sprint 2.*

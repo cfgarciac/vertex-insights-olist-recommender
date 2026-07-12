@@ -61,8 +61,10 @@ selección definitiva)** pertenece a la Etapa 6 (Sprint 2): aquí se hizo la eva
   (clase mayoritaria + regla de negocio), `train.py` (carga, rejilla por familia,
   selección por PR-AUC en val, umbral operativo, serialización) y `evaluate.py`
   (métricas, análisis por región/cold-start, auditoría de fuga, graficado).
-- **Modelo candidato serializado** (`artifacts/modelo_p1.joblib`): `Pipeline`
-  completo (preprocesador de la Etapa 3 + XGBoost), umbral operativo y metadatos.
+- **Modelo candidato serializado** (`artifacts/modelo_riesgo_p1.joblib`): regresor
+  XGBoost de `dias_vs_promesa` **calibrado** a P(tarde) — modelo recomendado tras la
+  re-ejecución multi-modelo (D-30/D-31). Reemplaza al antiguo `modelo_p1.joblib`
+  (clasificador, retirado). Se serializan además `modelo_binario/multiclase/regresion.joblib`.
 - **Reporte de resultados** (`reports/etapa4_modelado_resultados.md`) y **métricas
   reproducibles** (`reports/etapa4_metrics.json`).
 - **Figuras** (`reports/figures_modelado_etapa4/`): curvas PR/ROC, calibración,
@@ -161,11 +163,27 @@ de Sprint 1.
 
 ---
 
+## 9-bis. Re-ejecución multi-modelo (D-30 a D-32)
+
+Tras el cierre original, la Etapa 4 se **re-ejecutó** con la tabla ampliada de la Etapa 3
+(`orders_features.csv`, 4 targets, D-30) mediante `src/models/train_multimodelo.py`,
+comparando varias familias en **tres tareas**: binaria (`entrega_tarde`), multiclase
+(`clase_entrega`) y regresión (`dias_vs_promesa`).
+
+- **Modelo recomendado:** regresor XGBoost de `dias_vs_promesa` **calibrado** a P(tarde)
+  (`artifacts/modelo_riesgo_p1.joblib`): ROC-AUC **0.742**, PR-AUC **0.132**, Brier **0.063**;
+  recall ajustable (**0.83 @ 43% alertas → 0.92 @ 64%**). Supera al clasificador viejo (0.703 / 0.124 / 0.186).
+- **Hallazgo (D-32):** añadir features [t0] derivadas NO mejora el techo (drift de régimen R-14).
+- **Validación cruzada temporal** (TimeSeriesSplit) confirma robustez razonable ante estacionalidad.
+- Salidas consolidadas en la estructura de Etapa 4: `reports/etapa4_modelado_resultados.md`,
+  `reports/etapa4_metrics.json`, `reports/figures_modelado_etapa4/` (9 figuras). El antiguo
+  `modelo_p1.joblib` se retiró.
+
 ## 10. Próximos pasos
 
 La **Etapa 5 — Cierre del Sprint 1** la lidera el **Scrum Master (Cristian)** con
 HU-11: Sprint Review (demostrar el MVP predictivo), Sprint Retrospective, cierre
-documental y tag **V1.4.0**. El modelo candidato (`artifacts/modelo_p1.joblib`) y este
+documental y tag **V1.4.0**. El modelo candidato (`artifacts/modelo_riesgo_p1.joblib`) y este
 reporte son el insumo del MVP a mostrar.
 
 Pendientes que entran al Sprint 2 (Etapa 6, HU-12): evaluación final con calibración
