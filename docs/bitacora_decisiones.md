@@ -1562,3 +1562,30 @@ BI Analyst, por indicación del tutor); D-41 al cierre de la Etapa 6 con la
 ratificación de la política P90, los umbrales del escudo (v2 = 0.3658 principal,
 v1 = 0.0721 en transición) y la postura ante R-14 (monitoreo con runbook, sin
 re-ventaneo). Con D-41 se cierra el ciclo de decisiones del Sprint 2.*
+
+---
+
+### D-42 — Entrega final del Proyecto Final al comité evaluador
+
+**Fecha:** 2026-07-09
+**Estado:** Aceptada
+**Responsable:** Equipo completo
+
+**Contexto:**
+Con la Etapa 6 cerrada y ratificada (D-41, 2026-07-05) y el despliegue completo
+(API, Docker, dashboard, monitoreo, documentación y suite de tests), restaba
+únicamente la presentación formal ante el comité evaluador de Henry (Etapa 9).
+
+**Decisión:**
+El equipo entrega y presenta el Proyecto Final al comité evaluador el jueves
+2026-07-09. Se cierra formalmente el ciclo completo del proyecto (Etapas 0–9).
+
+**Alternativas consideradas:**
+No aplica; es un hito de entrega, no una decisión técnica con alternativas.
+
+**Consecuencias:**
+- Positivas: proyecto evaluado y cerrado; habilita su uso como pieza de
+  portafolio individual por cada integrante.
+- Negativas o trade-offs: ninguna identificada.
+
+**Etapa asociada:** 9

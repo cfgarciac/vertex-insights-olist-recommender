@@ -167,11 +167,11 @@ final y suite 67/67 con CI. Detalle en
 | 2 | Entendimiento del negocio, EDA y **pivote a P1** | ✅ V1.1.0 |
 | 3 | Feature engineering ([t0], anti-fuga, split temporal) | ✅ V1.2.0 |
 | 4 | Modelado P1 (baseline + clasificadores + regresión calibrada) | ✅ V1.3.x |
-| 5 | Cierre Sprint 1 (review + retrospective) | ✅ V1.4.0* |
+| 5 | Cierre Sprint 1 (review + retrospective) | ✅ V1.4.0 |
 | 6 | Evaluación final y selección (justificación + plan de validación) | ✅ V1.5.0* |
 | 7 | Despliegue: API + Docker + dashboard | ✅ V1.6.0* |
 | 8 | Monitoreo + documentación técnica | ✅ V1.7.0* |
-| 9 | Entrega final (presentación al comité) | 🔶 V1.8.0* pendiente de fecha |
+| 9 | Entrega final (presentación al comité) | ✅ V1.8.0 — 2026-07-09 |
 
 \* Tags a crear en `master` tras el merge del PR #28 (`Nassim → developer → master`);
 ver los actos formales pendientes en `docs/etapas/cierre-sprint-2.md`.
